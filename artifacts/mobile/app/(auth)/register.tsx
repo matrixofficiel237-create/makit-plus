@@ -48,7 +48,7 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     setError("");
-    const success = await register({
+    const user = await register({
       nom: form.nom,
       prenom: form.prenom,
       telephone: form.telephone,
@@ -56,8 +56,9 @@ export default function RegisterScreen() {
       motDePasse: form.motDePasse,
     });
     setLoading(false);
-    if (success) {
+    if (user) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/(tabs)/home");
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError("Ce numéro de téléphone est déjà utilisé");
@@ -92,7 +93,7 @@ export default function RegisterScreen() {
         <View style={styles.form}>
           <View style={styles.row}>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Nom</Text>
+              <Text style={styles.label}>Nom *</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Dupont"
@@ -102,7 +103,7 @@ export default function RegisterScreen() {
               />
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Prénom</Text>
+              <Text style={styles.label}>Prénom *</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Jean"
@@ -114,7 +115,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Numéro de téléphone</Text>
+            <Text style={styles.label}>Numéro de téléphone *</Text>
             <TextInput
               style={styles.input}
               placeholder="Ex: 0612345678"
@@ -126,10 +127,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Adresse de livraison</Text>
+            <Text style={styles.label}>Adresse de livraison *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Votre adresse"
+              placeholder="Votre adresse (quartier, rue...)"
               placeholderTextColor={Colors.gray}
               value={form.adresse}
               onChangeText={(v) => update("adresse", v)}
@@ -137,7 +138,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Mot de passe</Text>
+            <Text style={styles.label}>Mot de passe *</Text>
             <TextInput
               style={styles.input}
               placeholder="Minimum 6 caractères"
@@ -149,7 +150,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Confirmer le mot de passe</Text>
+            <Text style={styles.label}>Confirmer le mot de passe *</Text>
             <TextInput
               style={styles.input}
               placeholder="Répétez le mot de passe"

@@ -29,6 +29,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(livreur)" />
+      <Stack.Screen name="(admin)" />
       <Stack.Screen name="order-detail" />
       <Stack.Screen name="+not-found" />
     </Stack>

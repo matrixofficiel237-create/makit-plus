@@ -13,6 +13,8 @@ export default function SplashScreen() {
         if (user) {
           if (user.role === "livreur") {
             router.replace("/(livreur)/orders");
+          } else if (user.role === "admin") {
+            router.replace("/(admin)/dashboard");
           } else {
             router.replace("/(tabs)/home");
           }

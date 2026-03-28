@@ -13,8 +13,8 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (telephone: string, motDePasse: string) => Promise<boolean>;
-  register: (data: RegisterData) => Promise<boolean>;
+  login: (telephone: string, motDePasse: string) => Promise<User | null>;
+  register: (data: RegisterData) => Promise<User | null>;
   logout: () => Promise<void>;
   forgotPassword: (telephone: string) => Promise<boolean>;
 }
@@ -50,12 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function login(telephone: string, motDePasse: string): Promise<boolean> {
+  async function login(telephone: string, motDePasse: string): Promise<User | null> {
     try {
-      const usersData = await AsyncStorage.getItem("makit_users");
-      const users: (User & { motDePasse: string })[] = usersData ? JSON.parse(usersData) : [];
-
-      // Check for livreur test account
+      // Compte livreur de test
       if (telephone === "0000000000" && motDePasse === "livreur123") {
         const livreurUser: User = {
           id: "livreur-1",
@@ -67,8 +64,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         await AsyncStorage.setItem("makit_user", JSON.stringify(livreurUser));
         setUser(livreurUser);
-        return true;
+        return livreurUser;
       }
+
+      // Compte admin de test
+      if (telephone === "admin" && motDePasse === "admin123") {
+        const adminUser: User = {
+          id: "admin-1",
+          nom: "Admin",
+          prenom: "Makit+",
+          telephone: "admin",
+          adresse: "Makit+ HQ",
+          role: "admin",
+        };
+        await AsyncStorage.setItem("makit_user", JSON.stringify(adminUser));
+        setUser(adminUser);
+        return adminUser;
+      }
+
+      const usersData = await AsyncStorage.getItem("makit_users");
+      const users: (User & { motDePasse: string })[] = usersData ? JSON.parse(usersData) : [];
 
       const found = users.find(
         (u) => u.telephone === telephone && u.motDePasse === motDePasse
@@ -77,21 +92,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { motDePasse: _pwd, ...userWithoutPwd } = found;
         await AsyncStorage.setItem("makit_user", JSON.stringify(userWithoutPwd));
         setUser(userWithoutPwd);
-        return true;
+        return userWithoutPwd;
       }
-      return false;
+      return null;
     } catch (e) {
-      return false;
+      return null;
     }
   }
 
-  async function register(data: RegisterData): Promise<boolean> {
+  async function register(data: RegisterData): Promise<User | null> {
     try {
       const usersData = await AsyncStorage.getItem("makit_users");
       const users: (User & { motDePasse: string })[] = usersData ? JSON.parse(usersData) : [];
 
       const exists = users.find((u) => u.telephone === data.telephone);
-      if (exists) return false;
+      if (exists) return null;
 
       const newUser: User & { motDePasse: string } = {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -109,9 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { motDePasse: _pwd, ...userWithoutPwd } = newUser;
       await AsyncStorage.setItem("makit_user", JSON.stringify(userWithoutPwd));
       setUser(userWithoutPwd);
-      return true;
+      return userWithoutPwd;
     } catch (e) {
-      return false;
+      return null;
     }
   }
 

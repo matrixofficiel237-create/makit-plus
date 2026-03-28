@@ -30,11 +30,17 @@ export default function LoginScreen() {
     }
     setLoading(true);
     setError("");
-    const success = await login(telephone, motDePasse);
+    const user = await login(telephone, motDePasse);
     setLoading(false);
-    if (success) {
+    if (user) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // navigation handled by index.tsx
+      if (user.role === "livreur") {
+        router.replace("/(livreur)/orders");
+      } else if (user.role === "admin") {
+        router.replace("/(admin)/dashboard");
+      } else {
+        router.replace("/(tabs)/home");
+      }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError("Numéro ou mot de passe incorrect");
@@ -76,7 +82,7 @@ export default function LoginScreen() {
               placeholderTextColor={Colors.gray}
               value={telephone}
               onChangeText={setTelephone}
-              keyboardType="phone-pad"
+              keyboardType="default"
               autoCapitalize="none"
             />
           </View>
@@ -121,6 +127,13 @@ export default function LoginScreen() {
               <Text style={styles.registerBold}>Créer un compte</Text>
             </Text>
           </TouchableOpacity>
+
+          {/* Comptes de test */}
+          <View style={styles.testAccounts}>
+            <Text style={styles.testTitle}>Comptes de démonstration :</Text>
+            <Text style={styles.testItem}>🛒 Livreur : 0000000000 / livreur123</Text>
+            <Text style={styles.testItem}>⚙️ Admin : admin / admin123</Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -236,5 +249,24 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
+  },
+  testAccounts: {
+    backgroundColor: Colors.primaryLighter,
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+    marginTop: 8,
+  },
+  testTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.primaryDark,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 2,
+  },
+  testItem: {
+    fontSize: 12,
+    color: Colors.primaryDark,
+    fontFamily: "Inter_400Regular",
   },
 });
