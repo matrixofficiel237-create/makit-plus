@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,6 +14,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
 import * as Haptics from "expo-haptics";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface MenuItemProps {
   icon: string;
@@ -46,28 +46,17 @@ export default function ProfileScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user, logout } = useAuth();
   const { getOrdersByUser } = useOrders();
+  const [showLogout, setShowLogout] = useState(false);
 
   const orders = user ? getOrdersByUser(user.id) : [];
   const completed = orders.filter((o) => o.statut === "livre").length;
   const active = orders.filter((o) => o.statut !== "livre").length;
 
-  function handleLogout() {
-    Alert.alert(
-      "Déconnexion",
-      "Êtes-vous sûr de vouloir vous déconnecter ?",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Déconnecter",
-          style: "destructive",
-          onPress: async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            await logout();
-            router.replace("/(auth)/login");
-          },
-        },
-      ]
-    );
+  async function doLogout() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowLogout(false);
+    await logout();
+    router.replace("/(auth)/login");
   }
 
   return (
@@ -165,7 +154,7 @@ export default function ProfileScreen() {
               icon="log-out"
               label="Se déconnecter"
               color={Colors.red}
-              onPress={handleLogout}
+              onPress={() => setShowLogout(true)}
             />
           </View>
         </View>
@@ -179,6 +168,17 @@ export default function ProfileScreen() {
 
         <View style={{ height: Platform.OS === "web" ? 100 : 90 }} />
       </ScrollView>
+
+      <ConfirmModal
+        visible={showLogout}
+        title="Déconnexion"
+        message="Êtes-vous sûr de vouloir vous déconnecter de Makit+ ?"
+        confirmLabel="Déconnecter"
+        cancelLabel="Annuler"
+        danger
+        onConfirm={doLogout}
+        onCancel={() => setShowLogout(false)}
+      />
     </View>
   );
 }

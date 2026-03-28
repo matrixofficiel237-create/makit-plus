@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,20 +21,26 @@ import * as Haptics from "expo-haptics";
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const botPad = Platform.OS === "web" ? 34 : insets.bottom;
   const { items, removeItem, updateQuantite, clearCart, totalProduits, fraisLivraison, totalFinal } = useCart();
   const { user } = useAuth();
   const { createOrder } = useOrders();
 
-  const [step, setStep] = useState<"cart" | "address" | "payment">("cart");
-  const [adresse, setAdresse] = useState({ quartier: "", rue: "", description: "" });
+  const [quartier, setQuartier] = useState("");
+  const [rue, setRue] = useState("");
+  const [description, setDescription] = useState("");
   const [paiement, setPaiement] = useState<"livraison" | "mobile_money">("livraison");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({ quartier: false, rue: false });
+  const [confirmed, setConfirmed] = useState(false);
 
-  async function handleOrder() {
-    if (!adresse.quartier || !adresse.rue) {
-      Alert.alert("Erreur", "Veuillez remplir le quartier et la rue");
-      return;
-    }
+  async function handleConfirm() {
+    const newErrors = {
+      quartier: !quartier.trim(),
+      rue: !rue.trim(),
+    };
+    setErrors(newErrors);
+    if (newErrors.quartier || newErrors.rue) return;
     if (!user) {
       router.replace("/(auth)/login");
       return;
@@ -45,7 +50,7 @@ export default function CartScreen() {
       await createOrder({
         userId: user.id,
         items: [...items],
-        adresse,
+        adresse: { quartier: quartier.trim(), rue: rue.trim(), description: description.trim() },
         paiement,
         totalProduits,
         fraisLivraison,
@@ -53,14 +58,50 @@ export default function CartScreen() {
       });
       clearCart();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setStep("cart");
-      setAdresse({ quartier: "", rue: "", description: "" });
-      router.replace("/(tabs)/orders");
-    } catch (e) {
-      Alert.alert("Erreur", "Une erreur est survenue");
+      setConfirmed(true);
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
+  }
+
+  if (confirmed) {
+    return (
+      <View style={[styles.container, { paddingTop: topPad }]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Commande envoyée</Text>
+        </View>
+        <View style={styles.successContainer}>
+          <View style={styles.successIcon}>
+            <Feather name="check-circle" size={64} color={Colors.primary} />
+          </View>
+          <Text style={styles.successTitle}>Commande confirmée ! 🎉</Text>
+          <Text style={styles.successText}>
+            Votre commande a été transmise. Un livreur va prendre en charge vos courses et vous les apporter.
+          </Text>
+          <TouchableOpacity
+            style={styles.successBtn}
+            onPress={() => {
+              setConfirmed(false);
+              router.replace("/(tabs)/orders");
+            }}
+          >
+            <Feather name="list" size={18} color={Colors.white} />
+            <Text style={styles.successBtnText}>Voir mes commandes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.successBtnOutline}
+            onPress={() => {
+              setConfirmed(false);
+              router.replace("/(tabs)/order");
+            }}
+          >
+            <Text style={styles.successBtnOutlineText}>Nouvelle commande</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   if (items.length === 0) {
@@ -70,14 +111,17 @@ export default function CartScreen() {
           <Text style={styles.headerTitle}>Panier</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <Feather name="shopping-cart" size={64} color={Colors.border} />
+          <Text style={{ fontSize: 56 }}>🛒</Text>
           <Text style={styles.emptyTitle}>Votre panier est vide</Text>
-          <Text style={styles.emptySubtitle}>Ajoutez des produits pour passer une commande</Text>
+          <Text style={styles.emptySubtitle}>
+            Ajoutez vos articles depuis la liste de courses
+          </Text>
           <TouchableOpacity
             style={styles.shopBtn}
             onPress={() => router.push("/(tabs)/order")}
           >
-            <Text style={styles.shopBtnText}>Commencer à commander</Text>
+            <Feather name="plus" size={18} color={Colors.white} />
+            <Text style={styles.shopBtnText}>Créer ma liste de courses</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -87,219 +131,166 @@ export default function CartScreen() {
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
       <View style={styles.header}>
-        {step !== "cart" && (
-          <TouchableOpacity onPress={() => setStep("cart")} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color={Colors.white} />
-          </TouchableOpacity>
-        )}
-        <Text style={styles.headerTitle}>
-          {step === "cart" ? "Panier" : step === "address" ? "Adresse" : "Paiement"}
-        </Text>
-      </View>
-
-      {/* Steps indicator */}
-      <View style={styles.stepsRow}>
-        {["cart", "address", "payment"].map((s, i) => (
-          <React.Fragment key={s}>
-            <View style={[styles.stepDot, step === s && styles.stepDotActive, (
-              (s === "address" && step === "payment") || (s === "cart" && step !== "cart")
-            ) && styles.stepDotDone]}>
-              <Text style={styles.stepDotText}>{i + 1}</Text>
-            </View>
-            {i < 2 && <View style={styles.stepLine} />}
-          </React.Fragment>
-        ))}
+        <Text style={styles.headerTitle}>Mon panier</Text>
+        <Text style={styles.headerSub}>{items.length} article{items.length > 1 ? "s" : ""}</Text>
       </View>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {step === "cart" && (
-          <>
-            <Text style={styles.sectionTitle}>Mes articles</Text>
-            {items.map((item) => (
-              <View key={item.product.id} style={styles.cartItem}>
-                <Text style={styles.itemEmoji}>{item.product.emoji}</Text>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName}>{item.product.nom}</Text>
-                  <Text style={styles.itemPrice}>{(item.product.prix * item.quantite).toLocaleString()} FCFA</Text>
-                  <Text style={styles.itemUnitPrice}>{item.product.prix.toLocaleString()} FCFA / unité</Text>
-                </View>
-                <View style={styles.itemActions}>
-                  <View style={styles.counter}>
-                    <TouchableOpacity
-                      style={styles.counterBtn}
-                      onPress={() => updateQuantite(item.product.id, item.quantite - 1)}
-                    >
-                      <Feather name="minus" size={14} color={Colors.primary} />
-                    </TouchableOpacity>
-                    <Text style={styles.counterText}>{item.quantite}</Text>
-                    <TouchableOpacity
-                      style={styles.counterBtn}
-                      onPress={() => updateQuantite(item.product.id, item.quantite + 1)}
-                    >
-                      <Feather name="plus" size={14} color={Colors.primary} />
-                    </TouchableOpacity>
-                  </View>
+        {/* Articles */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🛍️ Articles commandés</Text>
+          {items.map((item) => (
+            <View key={item.product.id} style={styles.cartItem}>
+              <Text style={styles.itemEmoji}>{item.product.emoji}</Text>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName} numberOfLines={1}>{item.product.nom}</Text>
+                <Text style={styles.itemPrice}>{(item.product.prix * item.quantite).toLocaleString()} FCFA</Text>
+                <Text style={styles.itemUnit}>{item.product.prix.toLocaleString()} FCFA/unité</Text>
+              </View>
+              <View style={styles.itemActions}>
+                <View style={styles.counter}>
                   <TouchableOpacity
-                    onPress={() => removeItem(item.product.id)}
-                    style={styles.deleteBtn}
+                    style={styles.counterBtn}
+                    onPress={() => updateQuantite(item.product.id, item.quantite - 1)}
                   >
-                    <Feather name="trash-2" size={16} color={Colors.red} />
+                    <Feather name="minus" size={12} color={Colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={styles.counterText}>{item.quantite}</Text>
+                  <TouchableOpacity
+                    style={styles.counterBtn}
+                    onPress={() => updateQuantite(item.product.id, item.quantite + 1)}
+                  >
+                    <Feather name="plus" size={12} color={Colors.primary} />
                   </TouchableOpacity>
                 </View>
-              </View>
-            ))}
-
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Sous-total</Text>
-                <Text style={styles.summaryValue}>{totalProduits.toLocaleString()} FCFA</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Frais de livraison</Text>
-                <Text style={styles.summaryValue}>{fraisLivraison.toLocaleString()} FCFA</Text>
-              </View>
-              <View style={[styles.summaryRow, styles.summaryTotal]}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>{totalFinal.toLocaleString()} FCFA</Text>
+                <TouchableOpacity onPress={() => removeItem(item.product.id)} style={styles.deleteBtn}>
+                  <Feather name="trash-2" size={15} color={Colors.red} />
+                </TouchableOpacity>
               </View>
             </View>
-          </>
-        )}
+          ))}
+        </View>
 
-        {step === "address" && (
-          <>
-            <Text style={styles.sectionTitle}>Adresse de livraison</Text>
-            <View style={styles.formGroup}>
+        {/* Récapitulatif */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Sous-total courses</Text>
+            <Text style={styles.summaryValue}>{totalProduits.toLocaleString()} FCFA</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Frais de livraison</Text>
+            <Text style={styles.summaryValue}>{fraisLivraison.toLocaleString()} FCFA</Text>
+          </View>
+          <View style={[styles.summaryRow, styles.totalRow]}>
+            <Text style={styles.totalLabel}>Total à payer</Text>
+            <Text style={styles.totalValue}>{totalFinal.toLocaleString()} FCFA</Text>
+          </View>
+        </View>
+
+        {/* Adresse */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📍 Adresse de livraison</Text>
+          <View style={styles.formCard}>
+            <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Quartier *</Text>
               <TextInput
-                style={styles.input}
-                placeholder="Ex: Akwa, Bonanjo..."
+                style={[styles.input, errors.quartier && styles.inputError]}
+                placeholder="Ex: Akwa, Bonanjo, Bonapriso..."
                 placeholderTextColor={Colors.gray}
-                value={adresse.quartier}
-                onChangeText={(v) => setAdresse((a) => ({ ...a, quartier: v }))}
+                value={quartier}
+                onChangeText={(v) => { setQuartier(v); setErrors((e) => ({ ...e, quartier: false })); }}
               />
+              {errors.quartier && <Text style={styles.errHint}>Champ requis</Text>}
             </View>
-            <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>Rue *</Text>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Rue / Avenue *</Text>
               <TextInput
-                style={styles.input}
-                placeholder="Nom de la rue"
+                style={[styles.input, errors.rue && styles.inputError]}
+                placeholder="Nom de la rue ou avenue"
                 placeholderTextColor={Colors.gray}
-                value={adresse.rue}
-                onChangeText={(v) => setAdresse((a) => ({ ...a, rue: v }))}
+                value={rue}
+                onChangeText={(v) => { setRue(v); setErrors((e) => ({ ...e, rue: false })); }}
               />
+              {errors.rue && <Text style={styles.errHint}>Champ requis</Text>}
             </View>
-            <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>Description de la maison</Text>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Description (optionnel)</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Ex: Maison bleue derrière l'école"
+                style={[styles.input, { height: 80, textAlignVertical: "top", paddingTop: 12 }]}
+                placeholder="Ex: Maison rouge, près de l'école..."
                 placeholderTextColor={Colors.gray}
-                value={adresse.description}
-                onChangeText={(v) => setAdresse((a) => ({ ...a, description: v }))}
+                value={description}
+                onChangeText={setDescription}
                 multiline
-                numberOfLines={3}
               />
             </View>
-          </>
-        )}
+          </View>
+        </View>
 
-        {step === "payment" && (
-          <>
-            <Text style={styles.sectionTitle}>Mode de paiement</Text>
-            <TouchableOpacity
-              style={[styles.paymentOption, paiement === "livraison" && styles.paymentOptionActive]}
-              onPress={() => setPaiement("livraison")}
-            >
-              <Feather name="dollar-sign" size={24} color={paiement === "livraison" ? Colors.primary : Colors.gray} />
-              <View style={styles.paymentInfo}>
-                <Text style={[styles.paymentName, paiement === "livraison" && styles.paymentNameActive]}>
-                  Paiement à la livraison
-                </Text>
-                <Text style={styles.paymentDesc}>Payez en cash à la réception</Text>
-              </View>
-              {paiement === "livraison" && <Feather name="check-circle" size={22} color={Colors.primary} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.paymentOption, paiement === "mobile_money" && styles.paymentOptionActive]}
-              onPress={() => setPaiement("mobile_money")}
-            >
-              <Feather name="smartphone" size={24} color={paiement === "mobile_money" ? Colors.primary : Colors.gray} />
-              <View style={styles.paymentInfo}>
-                <Text style={[styles.paymentName, paiement === "mobile_money" && styles.paymentNameActive]}>
-                  Mobile Money
-                </Text>
-                <Text style={styles.paymentDesc}>Orange Money, MTN Mobile Money</Text>
-              </View>
-              {paiement === "mobile_money" && <Feather name="check-circle" size={22} color={Colors.primary} />}
-            </TouchableOpacity>
-
-            <View style={styles.orderSummary}>
-              <Text style={styles.summaryTitle}>Récapitulatif</Text>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Articles ({items.length})</Text>
-                <Text style={styles.summaryValue}>{totalProduits.toLocaleString()} FCFA</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Livraison</Text>
-                <Text style={styles.summaryValue}>{fraisLivraison.toLocaleString()} FCFA</Text>
-              </View>
-              <View style={[styles.summaryRow, styles.summaryTotal]}>
-                <Text style={styles.totalLabel}>Total à payer</Text>
-                <Text style={styles.totalValue}>{totalFinal.toLocaleString()} FCFA</Text>
-              </View>
+        {/* Paiement */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💳 Mode de paiement</Text>
+          <TouchableOpacity
+            style={[styles.payOption, paiement === "livraison" && styles.payOptionActive]}
+            onPress={() => setPaiement("livraison")}
+          >
+            <View style={[styles.payIcon, { backgroundColor: paiement === "livraison" ? Colors.primaryLighter : Colors.lightGray }]}>
+              <Feather name="dollar-sign" size={22} color={paiement === "livraison" ? Colors.primary : Colors.gray} />
             </View>
-          </>
-        )}
+            <View style={styles.payInfo}>
+              <Text style={[styles.payName, paiement === "livraison" && { color: Colors.primaryDark }]}>
+                Paiement à la livraison
+              </Text>
+              <Text style={styles.payDesc}>Payez en espèces à la réception</Text>
+            </View>
+            {paiement === "livraison" && <Feather name="check-circle" size={22} color={Colors.primary} />}
+          </TouchableOpacity>
 
-        <View style={{ height: 120 }} />
+          <TouchableOpacity
+            style={[styles.payOption, paiement === "mobile_money" && styles.payOptionActive]}
+            onPress={() => setPaiement("mobile_money")}
+          >
+            <View style={[styles.payIcon, { backgroundColor: paiement === "mobile_money" ? Colors.primaryLighter : Colors.lightGray }]}>
+              <Feather name="smartphone" size={22} color={paiement === "mobile_money" ? Colors.primary : Colors.gray} />
+            </View>
+            <View style={styles.payInfo}>
+              <Text style={[styles.payName, paiement === "mobile_money" && { color: Colors.primaryDark }]}>
+                Mobile Money
+              </Text>
+              <Text style={styles.payDesc}>Orange Money · MTN MoMo</Text>
+            </View>
+            {paiement === "mobile_money" && <Feather name="check-circle" size={22} color={Colors.primary} />}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 140 }} />
       </ScrollView>
 
-      <View style={[styles.cta, { paddingBottom: insets.bottom + 12 }]}>
-        {step === "cart" && (
-          <TouchableOpacity
-            style={styles.ctaBtn}
-            onPress={() => setStep("address")}
-          >
-            <Text style={styles.ctaBtnText}>Choisir l'adresse</Text>
-            <Feather name="arrow-right" size={20} color={Colors.white} />
-          </TouchableOpacity>
-        )}
-        {step === "address" && (
-          <TouchableOpacity
-            style={styles.ctaBtn}
-            onPress={() => {
-              if (!adresse.quartier || !adresse.rue) {
-                Alert.alert("Champs requis", "Quartier et rue sont obligatoires");
-                return;
-              }
-              setStep("payment");
-            }}
-          >
-            <Text style={styles.ctaBtnText}>Choisir le paiement</Text>
-            <Feather name="arrow-right" size={20} color={Colors.white} />
-          </TouchableOpacity>
-        )}
-        {step === "payment" && (
-          <TouchableOpacity
-            style={[styles.ctaBtn, loading && styles.ctaBtnDisabled]}
-            onPress={handleOrder}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={Colors.white} />
-            ) : (
-              <>
-                <Feather name="check" size={20} color={Colors.white} />
-                <Text style={styles.ctaBtnText}>Confirmer la commande</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
+      {/* Bouton Confirmer */}
+      <View style={[styles.confirmBar, { paddingBottom: botPad + 12 }]}>
+        <View style={styles.confirmBarTop}>
+          <Text style={styles.confirmBarLabel}>Total</Text>
+          <Text style={styles.confirmBarTotal}>{totalFinal.toLocaleString()} FCFA</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.confirmBtn, loading && styles.confirmBtnDisabled]}
+          onPress={handleConfirm}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={Colors.white} size="small" />
+          ) : (
+            <>
+              <Feather name="check-circle" size={22} color={Colors.white} />
+              <Text style={styles.confirmBtnText}>Confirmer la commande</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -311,45 +302,27 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
   },
-  backBtn: { padding: 2 },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: Colors.white,
     fontFamily: "Inter_700Bold",
   },
-  stepsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    backgroundColor: Colors.white,
-    gap: 0,
+  headerSub: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
   },
-  stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepDotActive: { backgroundColor: Colors.primary },
-  stepDotDone: { backgroundColor: Colors.primaryDark },
-  stepDotText: { color: Colors.white, fontSize: 12, fontWeight: "700" },
-  stepLine: { width: 40, height: 2, backgroundColor: Colors.border },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16, gap: 12 },
+  scrollContent: { padding: 16, gap: 16 },
+  section: { gap: 10 },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: Colors.text,
     fontFamily: "Inter_700Bold",
-    marginBottom: 4,
   },
   cartItem: {
     backgroundColor: Colors.white,
@@ -364,48 +337,34 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  itemEmoji: { fontSize: 32 },
+  itemEmoji: { fontSize: 28 },
   itemInfo: { flex: 1, gap: 2 },
-  itemName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.text,
-    fontFamily: "Inter_600SemiBold",
-  },
-  itemPrice: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.primary,
-    fontFamily: "Inter_700Bold",
-  },
-  itemUnitPrice: {
-    fontSize: 11,
-    color: Colors.textLight,
-    fontFamily: "Inter_400Regular",
-  },
+  itemName: { fontSize: 14, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
+  itemPrice: { fontSize: 14, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  itemUnit: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
   itemActions: { gap: 8, alignItems: "flex-end" },
   counter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     backgroundColor: Colors.primaryLighter,
     borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   counterBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: Colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
   counterText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: Colors.primary,
-    minWidth: 20,
+    minWidth: 18,
     textAlign: "center",
     fontFamily: "Inter_700Bold",
   },
@@ -415,110 +374,86 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     gap: 10,
-    marginTop: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  summaryLabel: { fontSize: 14, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  summaryValue: { fontSize: 14, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
+  totalRow: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, marginTop: 2 },
+  totalLabel: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  totalValue: { fontSize: 18, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  formCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 16,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  fieldGroup: { gap: 6 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
+  input: {
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
     color: Colors.text,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 4,
+    fontFamily: "Inter_400Regular",
   },
-  summaryRow: {
+  inputError: { borderColor: Colors.red },
+  errHint: { fontSize: 12, color: Colors.red, fontFamily: "Inter_400Regular" },
+  payOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: Colors.border,
+  },
+  payOptionActive: { borderColor: Colors.primary },
+  payIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payInfo: { flex: 1 },
+  payName: { fontSize: 14, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
+  payDesc: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 2 },
+  confirmBar: {
+    backgroundColor: Colors.white,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  confirmBarTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  summaryLabel: {
-    fontSize: 14,
-    color: Colors.textLight,
-    fontFamily: "Inter_400Regular",
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.text,
-    fontFamily: "Inter_600SemiBold",
-  },
-  summaryTotal: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 10,
-    marginTop: 4,
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text,
-    fontFamily: "Inter_700Bold",
-  },
-  totalValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: Colors.primary,
-    fontFamily: "Inter_700Bold",
-  },
-  formGroup: { gap: 6 },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.text,
-    fontFamily: "Inter_600SemiBold",
-  },
-  input: {
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: Colors.text,
-    fontFamily: "Inter_400Regular",
-  },
-  textArea: { height: 90, textAlignVertical: "top", paddingTop: 12 },
-  paymentOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  paymentOptionActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLighter,
-  },
-  paymentInfo: { flex: 1 },
-  paymentName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Colors.text,
-    fontFamily: "Inter_600SemiBold",
-  },
-  paymentNameActive: { color: Colors.primaryDark },
-  paymentDesc: {
-    fontSize: 12,
-    color: Colors.textLight,
-    fontFamily: "Inter_400Regular",
-  },
-  orderSummary: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 16,
-    gap: 10,
-    marginTop: 8,
-  },
-  cta: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  ctaBtn: {
+  confirmBarLabel: { fontSize: 13, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  confirmBarTotal: { fontSize: 20, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  confirmBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
@@ -528,17 +463,12 @@ const styles = StyleSheet.create({
     gap: 10,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 5,
   },
-  ctaBtnDisabled: { opacity: 0.7 },
-  ctaBtnText: {
-    color: Colors.white,
-    fontSize: 17,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
+  confirmBtnDisabled: { opacity: 0.7 },
+  confirmBtnText: { color: Colors.white, fontSize: 17, fontWeight: "700", fontFamily: "Inter_700Bold" },
   emptyContainer: {
     flex: 1,
     alignItems: "center",
@@ -546,29 +476,72 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 40,
   },
-  emptyTitle: {
-    fontSize: 20,
+  emptyTitle: { fontSize: 20, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  emptySubtitle: { fontSize: 14, color: Colors.textLight, textAlign: "center", fontFamily: "Inter_400Regular" },
+  shopBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  shopBtnText: { color: Colors.white, fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  successContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    gap: 16,
+  },
+  successIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.primaryLighter,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successTitle: {
+    fontSize: 22,
     fontWeight: "700",
     color: Colors.text,
     fontFamily: "Inter_700Bold",
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.textLight,
     textAlign: "center",
-    fontFamily: "Inter_400Regular",
   },
-  shopBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
-  },
-  shopBtnText: {
-    color: Colors.white,
+  successText: {
     fontSize: 15,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
+    color: Colors.textLight,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 23,
+  },
+  successBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  successBtnText: { color: Colors.white, fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  successBtnOutline: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  successBtnOutlineText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
   },
 });
