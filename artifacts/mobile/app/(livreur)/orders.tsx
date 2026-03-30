@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Platform,
   RefreshControl,
   Image,
@@ -17,6 +16,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders, Order, OrderStatus } from "@/context/OrderContext";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
+import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
 
 const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -120,6 +120,8 @@ export default function LivreurOrdersScreen() {
   const { getAllOrders, updateOrderStatus, refreshOrders } = useOrders();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "completed">("active");
+  const [showLogout, setShowLogout] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<{ orderId: string; status: OrderStatus } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -133,35 +135,21 @@ export default function LivreurOrdersScreen() {
     setRefreshing(false);
   }
 
-  async function handleUpdateStatus(orderId: string, newStatus: OrderStatus) {
-    Alert.alert(
-      "Mettre à jour le statut",
-      `Confirmer le changement de statut ?`,
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Confirmer",
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            await updateOrderStatus(orderId, newStatus);
-          },
-        },
-      ]
-    );
+  function handleUpdateStatus(orderId: string, newStatus: OrderStatus) {
+    setPendingStatus({ orderId, status: newStatus });
   }
 
-  function handleLogout() {
-    Alert.alert("Déconnexion", "Se déconnecter ?", [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Déconnecter",
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/(auth)/login");
-        },
-      },
-    ]);
+  async function confirmUpdateStatus() {
+    if (!pendingStatus) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await updateOrderStatus(pendingStatus.orderId, pendingStatus.status);
+    setPendingStatus(null);
+  }
+
+  async function doLogout() {
+    setShowLogout(false);
+    await logout();
+    router.replace("/(auth)/login");
   }
 
   const allOrders = getAllOrders();
@@ -184,7 +172,7 @@ export default function LivreurOrdersScreen() {
             <Text style={styles.headerSub}>{user?.prenom} {user?.nom}</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+        <TouchableOpacity onPress={() => setShowLogout(true)} style={styles.logoutBtn}>
           <Feather name="log-out" size={20} color={Colors.white} />
         </TouchableOpacity>
       </View>
@@ -252,6 +240,27 @@ export default function LivreurOrdersScreen() {
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ConfirmModal
+        visible={showLogout}
+        title="Déconnexion"
+        message="Êtes-vous sûr de vouloir vous déconnecter ?"
+        confirmLabel="Déconnecter"
+        cancelLabel="Annuler"
+        danger
+        onConfirm={doLogout}
+        onCancel={() => setShowLogout(false)}
+      />
+
+      <ConfirmModal
+        visible={!!pendingStatus}
+        title="Mettre à jour le statut"
+        message="Confirmer le changement de statut de cette commande ?"
+        confirmLabel="Confirmer"
+        cancelLabel="Annuler"
+        onConfirm={confirmUpdateStatus}
+        onCancel={() => setPendingStatus(null)}
+      />
     </View>
   );
 }

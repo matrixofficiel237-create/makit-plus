@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Platform,
   RefreshControl,
   Image,
@@ -17,6 +16,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders, Order, OrderStatus } from "@/context/OrderContext";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
+import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
 
 const LIVREUR_ID = "livreur-1";
@@ -52,6 +52,8 @@ export default function AdminDashboard() {
   const { getAllOrders, assignLivreur, updateOrderStatus, refreshOrders } = useOrders();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "stats">("orders");
+  const [showLogout, setShowLogout] = useState(false);
+  const [pendingAssign, setPendingAssign] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,35 +67,21 @@ export default function AdminDashboard() {
     setRefreshing(false);
   }
 
-  function handleLogout() {
-    Alert.alert("Déconnexion", "Se déconnecter ?", [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Déconnecter",
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/(auth)/login");
-        },
-      },
-    ]);
+  async function doLogout() {
+    setShowLogout(false);
+    await logout();
+    router.replace("/(auth)/login");
   }
 
-  async function handleAssignLivreur(orderId: string) {
-    Alert.alert(
-      "Assigner le livreur",
-      "Assigner cette commande au livreur Makit+ ?",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Assigner",
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            await assignLivreur(orderId, LIVREUR_ID);
-          },
-        },
-      ]
-    );
+  async function confirmAssignLivreur() {
+    if (!pendingAssign) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await assignLivreur(pendingAssign, LIVREUR_ID);
+    setPendingAssign(null);
+  }
+
+  function handleAssignLivreur(orderId: string) {
+    setPendingAssign(orderId);
   }
 
   const allOrders = getAllOrders();
@@ -117,7 +105,7 @@ export default function AdminDashboard() {
             <Text style={styles.headerSub}>Makit+ Dashboard</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+        <TouchableOpacity onPress={() => setShowLogout(true)} style={styles.logoutBtn}>
           <Feather name="log-out" size={20} color={Colors.white} />
         </TouchableOpacity>
       </View>
@@ -210,6 +198,27 @@ export default function AdminDashboard() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ConfirmModal
+        visible={showLogout}
+        title="Déconnexion"
+        message="Êtes-vous sûr de vouloir vous déconnecter de l'administration ?"
+        confirmLabel="Déconnecter"
+        cancelLabel="Annuler"
+        danger
+        onConfirm={doLogout}
+        onCancel={() => setShowLogout(false)}
+      />
+
+      <ConfirmModal
+        visible={!!pendingAssign}
+        title="Assigner le livreur"
+        message="Assigner cette commande au livreur Makit+ ?"
+        confirmLabel="Assigner"
+        cancelLabel="Annuler"
+        onConfirm={confirmAssignLivreur}
+        onCancel={() => setPendingAssign(null)}
+      />
     </View>
   );
 }
