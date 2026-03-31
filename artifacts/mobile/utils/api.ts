@@ -50,5 +50,10 @@ export const api = {
     update: (id: string, patch: { nom?: string; prenom?: string; telephone?: string; adresse?: string }) =>
       apiFetch<{ user: any }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
     delete: (id: string) => apiFetch<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
+    savePushToken: (userId: string, token: string) =>
+      apiFetch<{ success: boolean }>(`/users/${userId}/push-token`, {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
   },
 };

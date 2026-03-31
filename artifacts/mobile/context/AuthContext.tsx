@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/utils/api";
+import { registerForPushNotifications } from "@/utils/notifications";
 
 export interface User {
   id: string;
@@ -51,7 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function loadUser() {
     try {
       const userData = await AsyncStorage.getItem("makit_user");
-      if (userData) setUser(JSON.parse(userData));
+      if (userData) {
+        const u = JSON.parse(userData);
+        setUser(u);
+        // Re-enregistrer le push token au démarrage (token peut changer)
+        registerForPushNotifications(u.id).catch(() => {});
+      }
     } catch {}
     finally { setIsLoading(false); }
   }
@@ -61,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user: u } = await api.auth.login(telephone, motDePasse);
       await AsyncStorage.setItem("makit_user", JSON.stringify(u));
       setUser(u);
+      // Enregistrer le push token après connexion (ne bloque pas la navigation)
+      registerForPushNotifications(u.id).catch(() => {});
       return u;
     } catch { return null; }
   }
@@ -70,6 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user: u } = await api.auth.register(data);
       await AsyncStorage.setItem("makit_user", JSON.stringify(u));
       setUser(u);
+      // Enregistrer le push token après inscription
+      registerForPushNotifications(u.id).catch(() => {});
       return u;
     } catch { return null; }
   }

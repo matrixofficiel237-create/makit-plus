@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllUsers, findUserByPhone, findUserById, createUser, deleteUser, updateUser } from "../store";
+import { getAllUsers, findUserByPhone, findUserById, createUser, deleteUser, updateUser, savePushToken } from "../store";
 
 const router = Router();
 
@@ -77,6 +77,22 @@ router.patch("/:id", (req, res) => {
 router.delete("/:id", (req, res) => {
   const { id } = req.params;
   const ok = deleteUser(id);
+  if (!ok) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  res.json({ success: true });
+});
+
+// Enregistrer le push token d'un utilisateur
+router.post("/:id/push-token", (req, res) => {
+  const { id } = req.params;
+  const { token } = req.body as { token: string };
+  if (!token) {
+    res.status(400).json({ error: "Token manquant" });
+    return;
+  }
+  const ok = savePushToken(id, token);
   if (!ok) {
     res.status(404).json({ error: "User not found" });
     return;

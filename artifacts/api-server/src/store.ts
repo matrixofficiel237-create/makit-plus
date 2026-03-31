@@ -11,6 +11,7 @@ export interface StoredUser {
   adresse: string;
   motDePasse: string;
   role: "client" | "livreur" | "admin" | "sous_admin";
+  pushToken?: string;
 }
 
 export interface StoredOrder {
@@ -114,6 +115,23 @@ export function updateUser(id: string, patch: Partial<Omit<StoredUser, "id" | "r
   store.users[idx] = { ...store.users[idx], ...patch };
   saveStore();
   return store.users[idx];
+}
+
+export function savePushToken(userId: string, token: string): boolean {
+  const idx = store.users.findIndex((u) => u.id === userId);
+  if (idx === -1) return false;
+  store.users[idx].pushToken = token;
+  saveStore();
+  return true;
+}
+
+export function getUserPushToken(userId: string): string | null {
+  const user = store.users.find((u) => u.id === userId);
+  return user?.pushToken || null;
+}
+
+export function getAllUsersByRole(role: string): StoredUser[] {
+  return store.users.filter((u) => u.role === role);
 }
 
 // ── Orders ──

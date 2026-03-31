@@ -16,7 +16,8 @@
       "telephone": "admin",
       "adresse": "Makit+ HQ",
       "motDePasse": "admin123",
-      "role": "admin"
+      "role": "admin",
+      "pushToken": "ExponentPushToken[test123]"
     },
     {
       "id": "17749789639437lhtvxsu9",
@@ -92,6 +93,75 @@
       "totalFinal": 1750,
       "id": "1774985940912ppzwn2jew",
       "date": "2026-03-31T19:39:00.912Z",
+      "statut": "en_attente"
+    },
+    {
+      "userId": "17749789639437lhtvxsu9",
+      "items": [
+        {
+          "product": {
+            "id": "item-1774986019641mqfpc",
+            "nom": "Plantain",
+            "categorie": "courses",
+            "prix": 500,
+            "emoji": "🍌"
+          },
+          "quantite": 1
+        }
+      ],
+      "adresse": {
+        "quartier": "Douala",
+        "rue": "Route à gauche",
+        "description": ""
+      },
+      "paiement": "livraison",
+      "totalProduits": 500,
+      "fraisLivraison": 750,
+      "totalFinal": 1250,
+      "id": "1774986065017sa70aouun",
+      "date": "2026-03-31T19:41:05.017Z",
+      "statut": "en_attente"
+    },
+    {
+      "userId": "admin-1",
+      "items": [
+        {
+          "product": {
+            "id": "1",
+            "nom": "Tomate",
+            "prix": 500,
+            "emoji": "🍅"
+          },
+          "quantite": 1
+        }
+      ],
+      "adresse": {
+        "quartier": "Akwa",
+        "rue": "Test",
+        "description": ""
+      },
+      "paiement": "livraison",
+      "totalProduits": 500,
+      "fraisLivraison": 750,
+      "totalFinal": 1250,
+      "id": "1774986484481pezxs8rsb",
+      "date": "2026-03-31T19:48:04.481Z",
+      "statut": "en_attente"
+    },
+    {
+      "userId": "admin-1",
+      "items": [],
+      "adresse": {
+        "quartier": "Test",
+        "rue": "Test",
+        "description": ""
+      },
+      "paiement": "livraison",
+      "totalProduits": 500,
+      "fraisLivraison": 750,
+      "totalFinal": 1250,
+      "id": "1774986490177r0hlzifeq",
+      "date": "2026-03-31T19:48:10.177Z",
       "statut": "en_attente"
     }
   ]
