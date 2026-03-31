@@ -1,12 +1,17 @@
 import { Router } from "express";
-import { getAllUsers, findUserByPhone, createUser, deleteUser } from "../store";
+import { getAllUsers, findUserByPhone, findUserById, createUser, deleteUser, updateUser } from "../store";
 
 const router = Router();
 
 router.get("/", (req, res) => {
   const { role } = req.query as { role?: string };
   const all = getAllUsers();
-  const filtered = role ? all.filter((u) => u.role === role) : all.filter((u) => u.role !== "client" && u.role !== "admin");
+  let filtered: typeof all;
+  if (role) {
+    filtered = all.filter((u) => u.role === role);
+  } else {
+    filtered = all.filter((u) => u.role !== "client" && u.role !== "admin");
+  }
   res.json({ users: filtered.map(({ motDePasse: _, ...u }) => u) });
 });
 
@@ -36,6 +41,37 @@ router.post("/", (req, res) => {
   });
   const { motDePasse: _, ...safe } = newUser;
   res.status(201).json({ user: safe });
+});
+
+router.patch("/:id", (req, res) => {
+  const { id } = req.params;
+  const user = findUserById(id);
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  const { nom, prenom, telephone, adresse } = req.body as {
+    nom?: string; prenom?: string; telephone?: string; adresse?: string;
+  };
+  if (telephone && telephone !== user.telephone) {
+    const existing = findUserByPhone(telephone);
+    if (existing) {
+      res.status(409).json({ error: "Ce numéro est déjà utilisé" });
+      return;
+    }
+  }
+  const patch: any = {};
+  if (nom !== undefined) patch.nom = nom;
+  if (prenom !== undefined) patch.prenom = prenom;
+  if (telephone !== undefined) patch.telephone = telephone;
+  if (adresse !== undefined) patch.adresse = adresse;
+  const updated = updateUser(id, patch);
+  if (!updated) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  const { motDePasse: _, ...safe } = updated;
+  res.json({ user: safe });
 });
 
 router.delete("/:id", (req, res) => {

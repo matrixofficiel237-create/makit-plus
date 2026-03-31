@@ -23,6 +23,16 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    resetPassword: (telephone: string, newPassword: string) =>
+      apiFetch<{ success: boolean }>("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ telephone, newPassword }),
+      }),
+    updateCredentials: (userId: string, currentPassword: string, patch: { newTelephone?: string; newPassword?: string }) =>
+      apiFetch<{ user: any }>("/auth/update-credentials", {
+        method: "PATCH",
+        body: JSON.stringify({ userId, currentPassword, ...patch }),
+      }),
   },
   orders: {
     getAll: () => apiFetch<{ orders: any[] }>("/orders"),
@@ -37,6 +47,8 @@ export const api = {
       apiFetch<{ users: any[] }>(`/users${role ? `?role=${role}` : ""}`),
     create: (body: { nom: string; prenom: string; telephone: string; motDePasse: string; role: string; adresse?: string }) =>
       apiFetch<{ user: any }>("/users", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, patch: { nom?: string; prenom?: string; telephone?: string; adresse?: string }) =>
+      apiFetch<{ user: any }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
     delete: (id: string) => apiFetch<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
   },
 };

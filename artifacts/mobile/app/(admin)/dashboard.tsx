@@ -12,6 +12,7 @@ import { useOrders, Order, OrderStatus } from "@/context/OrderContext";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
+import { api } from "@/utils/api";
 
 const LIVREUR_PART = 400;
 const ENTREPRISE_PART = 350;
@@ -45,15 +46,16 @@ function StatCard({ label, value, color, icon }: { label: string; value: string 
   );
 }
 
-type Tab = "orders" | "stats" | "equipe";
+type Tab = "orders" | "stats" | "equipe" | "clients" | "settings";
 type TeamSection = "sous_admin" | "livreur";
 
 const blankForm = { nom: "", prenom: "", telephone: "", motDePasse: "" };
+const blankCredsForm = { currentPassword: "", newTelephone: "", newPassword: "", confirmPassword: "" };
 
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const { user, logout, createManagedUser, getManagedUsers, deleteManagedUser } = useAuth();
+  const { user, logout, createManagedUser, getManagedUsers, deleteManagedUser, updateCredentials } = useAuth();
   const { getAllOrders, assignLivreur, updateOrderStatus, refreshOrders } = useOrders();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -65,18 +67,34 @@ export default function AdminDashboard() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const [managedUsers, setManagedUsers] = useState<User[]>([]);
+  const [clients, setClients] = useState<User[]>([]);
   const [availableLivreurs, setAvailableLivreurs] = useState<User[]>([]);
   const [form, setForm] = useState(blankForm);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
 
+  // Settings (credentials)
+  const [credsForm, setCredsForm] = useState(blankCredsForm);
+  const [credsLoading, setCredsLoading] = useState(false);
+  const [credsError, setCredsError] = useState("");
+  const [credsSuccess, setCredsSuccess] = useState("");
+  const [showCurPass, setShowCurPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+
+  // Expanded client (to see their orders)
+  const [expandedClient, setExpandedClient] = useState<string | null>(null);
+
   useFocusEffect(useCallback(() => { refreshOrders(); loadUsers(); }, []));
 
   async function loadUsers() {
-    const all = await getManagedUsers();
+    const [all, clientList] = await Promise.all([
+      getManagedUsers(),
+      getManagedUsers("client"),
+    ]);
     setManagedUsers(all);
     setAvailableLivreurs(all.filter((u) => u.role === "livreur"));
+    setClients(clientList);
   }
 
   async function onRefresh() {
@@ -137,18 +155,51 @@ export default function AdminDashboard() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
+  async function handleSaveCreds() {
+    setCredsError("");
+    setCredsSuccess("");
+    if (!credsForm.currentPassword) {
+      setCredsError("Veuillez saisir votre mot de passe actuel");
+      return;
+    }
+    if (!credsForm.newTelephone && !credsForm.newPassword) {
+      setCredsError("Saisissez un nouveau numéro et/ou un nouveau mot de passe");
+      return;
+    }
+    if (credsForm.newPassword && credsForm.newPassword.length < 4) {
+      setCredsError("Le nouveau mot de passe doit contenir au moins 4 caractères");
+      return;
+    }
+    if (credsForm.newPassword && credsForm.newPassword !== credsForm.confirmPassword) {
+      setCredsError("Les mots de passe ne correspondent pas");
+      return;
+    }
+    setCredsLoading(true);
+    const patch: any = {};
+    if (credsForm.newTelephone.trim()) patch.newTelephone = credsForm.newTelephone.trim();
+    if (credsForm.newPassword.trim()) patch.newPassword = credsForm.newPassword.trim();
+    const result = await updateCredentials(credsForm.currentPassword, patch);
+    setCredsLoading(false);
+    if (result.ok) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCredsSuccess("Identifiants mis à jour avec succès !");
+      setCredsForm(blankCredsForm);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setCredsError(result.error || "Erreur réseau");
+    }
+  }
+
   const allOrders = getAllOrders();
   const pending = allOrders.filter((o) => o.statut === "en_attente");
   const inProgress = allOrders.filter((o) => o.statut !== "en_attente" && o.statut !== "livre");
   const delivered = allOrders.filter((o) => o.statut === "livre");
 
-  // Financial calculations
   const totalCourses = allOrders.reduce((s, o) => s + o.totalProduits, 0);
   const totalPartLivreur = delivered.length * LIVREUR_PART;
   const totalPartEntreprise = delivered.length * ENTREPRISE_PART;
   const netEntreprise = delivered.reduce((s, o) => s + o.totalProduits, 0) + totalPartEntreprise;
 
-  // Group delivered orders by day
   const byDay = delivered.reduce((acc: Record<string, Order[]>, o) => {
     const k = dayKey(o.date);
     if (!acc[k]) acc[k] = [];
@@ -159,6 +210,15 @@ export default function AdminDashboard() {
 
   const shownUsers = managedUsers.filter((u) => u.role === teamSection);
   const livreurMap = Object.fromEntries(availableLivreurs.map((l) => [l.id, l]));
+  const clientMap = Object.fromEntries(clients.map((c) => [c.id, c]));
+
+  const TABS: { key: Tab; label: string; icon: string }[] = [
+    { key: "orders", label: `Cmd (${allOrders.length})`, icon: "shopping-bag" },
+    { key: "stats", label: "Finances", icon: "bar-chart-2" },
+    { key: "equipe", label: "Équipe", icon: "users" },
+    { key: "clients", label: `Clients (${clients.length})`, icon: "user" },
+    { key: "settings", label: "Réglages", icon: "settings" },
+  ];
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -175,17 +235,15 @@ export default function AdminDashboard() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.tabsRow}>
-        {([
-          { key: "orders", label: `Commandes (${allOrders.length})` },
-          { key: "stats", label: "Finances" },
-          { key: "equipe", label: "Équipe" },
-        ] as { key: Tab; label: string }[]).map((t) => (
+      {/* Scrollable tab bar */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabsRow}>
+        {TABS.map((t) => (
           <TouchableOpacity key={t.key} style={[styles.tab, activeTab === t.key && styles.tabActive]} onPress={() => setActiveTab(t.key)}>
+            <Feather name={t.icon as any} size={14} color={activeTab === t.key ? Colors.primary : Colors.textLight} />
             <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -199,7 +257,7 @@ export default function AdminDashboard() {
               <>
                 <Text style={styles.sectionTitle}>⏳ En attente ({pending.length})</Text>
                 {pending.map((o) => (
-                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap}
+                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap} clientMap={clientMap}
                     onUpdateStatus={(id, s) => setPendingStatus({ orderId: id, status: s })}
                     onAssign={() => setPendingAssign(o.id)}
                   />
@@ -210,7 +268,7 @@ export default function AdminDashboard() {
               <>
                 <Text style={styles.sectionTitle}>🚚 En cours ({inProgress.length})</Text>
                 {inProgress.map((o) => (
-                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap}
+                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap} clientMap={clientMap}
                     onUpdateStatus={(id, s) => setPendingStatus({ orderId: id, status: s })}
                   />
                 ))}
@@ -220,7 +278,7 @@ export default function AdminDashboard() {
               <>
                 <Text style={styles.sectionTitle}>✅ Livrées ({delivered.length})</Text>
                 {delivered.map((o) => (
-                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap} />
+                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap} clientMap={clientMap} />
                 ))}
               </>
             )}
@@ -236,7 +294,6 @@ export default function AdminDashboard() {
         {/* ── FINANCES ── */}
         {activeTab === "stats" && (
           <>
-            {/* Net total hero */}
             <View style={styles.financeHeroRow}>
               <View style={[styles.financeHero, { flex: 1 }]}>
                 <Text style={styles.financeHeroLabel}>Net entreprise (total)</Text>
@@ -247,12 +304,9 @@ export default function AdminDashboard() {
                 <Text style={styles.financeHeroValue}>{delivered.length}</Text>
               </View>
             </View>
-
             <StatCard label="Commandes totales" value={allOrders.length} color={Colors.primary} icon="shopping-bag" />
-            <StatCard label="Part livreurs (400 × {n})" value={`− ${totalPartLivreur.toLocaleString()} FCFA`} color={Colors.red} icon="user" />
-            <StatCard label="Part entreprise (transport)" value={`${totalPartEntreprise.toLocaleString()} FCFA`} color={Colors.primaryDark} icon="truck" />
-
-            {/* Finance globale */}
+            <StatCard label={`Part livreurs (400 × ${delivered.length})`} value={`− ${totalPartLivreur.toLocaleString()} FCFA`} color={Colors.red} icon="user" />
+            <StatCard label={`Part entreprise (transport, 350 × ${delivered.length})`} value={`${totalPartEntreprise.toLocaleString()} FCFA`} color={Colors.primaryDark} icon="truck" />
             <View style={styles.breakdownCard}>
               <Text style={styles.breakdownTitle}>💰 Récapitulatif global</Text>
               <FinanceLine label="Montant courses" value={`${totalCourses.toLocaleString()} FCFA`} />
@@ -264,8 +318,6 @@ export default function AdminDashboard() {
                 <Text style={styles.bTotalValue}>{netEntreprise.toLocaleString()} FCFA</Text>
               </View>
             </View>
-
-            {/* Daily breakdown */}
             <Text style={styles.sectionTitle}>📅 Recettes par journée</Text>
             {sortedDays.length === 0 ? (
               <View style={styles.empty}>
@@ -287,22 +339,10 @@ export default function AdminDashboard() {
                       </View>
                     </View>
                     <View style={styles.dayStats}>
-                      <View style={styles.dayStat}>
-                        <Text style={styles.dayStatVal}>{dayOrders.length}</Text>
-                        <Text style={styles.dayStatLabel}>Livraisons</Text>
-                      </View>
-                      <View style={styles.dayStat}>
-                        <Text style={styles.dayStatVal}>{dayCourses.toLocaleString()} F</Text>
-                        <Text style={styles.dayStatLabel}>Courses</Text>
-                      </View>
-                      <View style={styles.dayStat}>
-                        <Text style={[styles.dayStatVal, { color: Colors.red }]}>− {dayLivreur.toLocaleString()} F</Text>
-                        <Text style={styles.dayStatLabel}>Livreurs</Text>
-                      </View>
-                      <View style={styles.dayStat}>
-                        <Text style={[styles.dayStatVal, { color: Colors.primary }]}>{dayNet.toLocaleString()} F</Text>
-                        <Text style={styles.dayStatLabel}>Net</Text>
-                      </View>
+                      <View style={styles.dayStat}><Text style={styles.dayStatVal}>{dayOrders.length}</Text><Text style={styles.dayStatLabel}>Livraisons</Text></View>
+                      <View style={styles.dayStat}><Text style={styles.dayStatVal}>{dayCourses.toLocaleString()} F</Text><Text style={styles.dayStatLabel}>Courses</Text></View>
+                      <View style={styles.dayStat}><Text style={[styles.dayStatVal, { color: Colors.red }]}>− {dayLivreur.toLocaleString()} F</Text><Text style={styles.dayStatLabel}>Livreurs</Text></View>
+                      <View style={styles.dayStat}><Text style={[styles.dayStatVal, { color: Colors.primary }]}>{dayNet.toLocaleString()} F</Text><Text style={styles.dayStatLabel}>Net</Text></View>
                     </View>
                   </View>
                 );
@@ -314,7 +354,6 @@ export default function AdminDashboard() {
         {/* ── ÉQUIPE ── */}
         {activeTab === "equipe" && (
           <>
-            {/* Team section selector */}
             <View style={styles.teamToggle}>
               <TouchableOpacity style={[styles.teamToggleBtn, teamSection === "livreur" && styles.teamToggleBtnActive]}
                 onPress={() => { setTeamSection("livreur"); setForm(blankForm); setFormError(""); setFormSuccess(""); }}>
@@ -327,78 +366,52 @@ export default function AdminDashboard() {
                 <Text style={[styles.teamToggleText, teamSection === "sous_admin" && styles.teamToggleTextActive]}>Sous-admins</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Create form */}
             <View style={styles.createCard}>
               <View style={styles.createHeader}>
                 <Feather name={teamSection === "livreur" ? "truck" : "user-plus"} size={18} color={Colors.primary} />
-                <Text style={styles.createTitle}>
-                  {teamSection === "livreur" ? "Ajouter un livreur" : "Créer un sous-administrateur"}
-                </Text>
+                <Text style={styles.createTitle}>{teamSection === "livreur" ? "Ajouter un livreur" : "Créer un sous-administrateur"}</Text>
               </View>
-              <Text style={styles.createDesc}>
-                {teamSection === "livreur"
-                  ? "Le livreur peut voir et gérer ses livraisons, et consulter ses gains."
-                  : "Le sous-admin peut gérer les commandes, assigner les livreurs et consulter la recette journalière."}
-              </Text>
-
+              <Text style={styles.createDesc}>{teamSection === "livreur" ? "Le livreur peut voir et gérer ses livraisons, et consulter ses gains." : "Le sous-admin peut gérer les commandes, assigner les livreurs et consulter la recette journalière."}</Text>
               {formError ? <View style={styles.errBox}><Text style={styles.errText}>{formError}</Text></View> : null}
               {formSuccess ? <View style={styles.successBox}><Text style={styles.successText}>{formSuccess}</Text></View> : null}
-
               <View style={styles.formRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>Prénom</Text>
-                  <TextInput style={styles.input} placeholder="Prénom" placeholderTextColor={Colors.gray}
-                    value={form.prenom} onChangeText={(v) => setForm((f) => ({ ...f, prenom: v }))} />
+                  <TextInput style={styles.input} placeholder="Prénom" placeholderTextColor={Colors.gray} value={form.prenom} onChangeText={(v) => setForm((f) => ({ ...f, prenom: v }))} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>Nom</Text>
-                  <TextInput style={styles.input} placeholder="Nom" placeholderTextColor={Colors.gray}
-                    value={form.nom} onChangeText={(v) => setForm((f) => ({ ...f, nom: v }))} />
+                  <TextInput style={styles.input} placeholder="Nom" placeholderTextColor={Colors.gray} value={form.nom} onChangeText={(v) => setForm((f) => ({ ...f, nom: v }))} />
                 </View>
               </View>
               <View>
                 <Text style={styles.fieldLabel}>Téléphone (identifiant)</Text>
-                <TextInput style={styles.input} placeholder="Ex: 0612345678" placeholderTextColor={Colors.gray}
-                  value={form.telephone} onChangeText={(v) => setForm((f) => ({ ...f, telephone: v }))}
-                  keyboardType="phone-pad" />
+                <TextInput style={styles.input} placeholder="Ex: 0612345678" placeholderTextColor={Colors.gray} value={form.telephone} onChangeText={(v) => setForm((f) => ({ ...f, telephone: v }))} keyboardType="phone-pad" />
               </View>
               <View>
                 <Text style={styles.fieldLabel}>Mot de passe</Text>
-                <TextInput style={styles.input} placeholder="Minimum 4 caractères" placeholderTextColor={Colors.gray}
-                  value={form.motDePasse} onChangeText={(v) => setForm((f) => ({ ...f, motDePasse: v }))}
-                  secureTextEntry />
+                <TextInput style={styles.input} placeholder="Minimum 4 caractères" placeholderTextColor={Colors.gray} value={form.motDePasse} onChangeText={(v) => setForm((f) => ({ ...f, motDePasse: v }))} secureTextEntry />
               </View>
               <TouchableOpacity style={[styles.createBtn, formLoading && { opacity: 0.7 }]} onPress={handleCreate} disabled={formLoading}>
                 {formLoading ? <ActivityIndicator color={Colors.white} /> : (
                   <>
                     <Feather name="plus" size={18} color={Colors.white} />
-                    <Text style={styles.createBtnText}>
-                      {teamSection === "livreur" ? "Ajouter le livreur" : "Créer le sous-admin"}
-                    </Text>
+                    <Text style={styles.createBtnText}>{teamSection === "livreur" ? "Ajouter le livreur" : "Créer le sous-admin"}</Text>
                   </>
                 )}
               </TouchableOpacity>
             </View>
-
-            {/* List */}
-            <Text style={styles.sectionTitle}>
-              {teamSection === "livreur" ? `Livreurs (${shownUsers.length})` : `Sous-admins (${shownUsers.length})`}
-            </Text>
+            <Text style={styles.sectionTitle}>{teamSection === "livreur" ? `Livreurs (${shownUsers.length})` : `Sous-admins (${shownUsers.length})`}</Text>
             {shownUsers.length === 0 ? (
               <View style={styles.empty}>
                 <Feather name={teamSection === "livreur" ? "truck" : "users"} size={40} color={Colors.border} />
-                <Text style={styles.emptyText}>
-                  {teamSection === "livreur" ? "Aucun livreur créé" : "Aucun sous-admin créé"}
-                </Text>
+                <Text style={styles.emptyText}>{teamSection === "livreur" ? "Aucun livreur créé" : "Aucun sous-admin créé"}</Text>
               </View>
             ) : (
               shownUsers.map((u) => (
                 <View key={u.id} style={styles.memberCard}>
                   <View style={styles.memberAvatar}>
-                    <Text style={styles.memberAvatarText}>
-                      {u.prenom.charAt(0).toUpperCase()}{u.nom.charAt(0).toUpperCase()}
-                    </Text>
+                    <Text style={styles.memberAvatarText}>{u.prenom.charAt(0).toUpperCase()}{u.nom.charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{u.prenom} {u.nom}</Text>
@@ -416,19 +429,178 @@ export default function AdminDashboard() {
           </>
         )}
 
+        {/* ── CLIENTS ── */}
+        {activeTab === "clients" && (
+          <>
+            <View style={styles.clientsHero}>
+              <Feather name="users" size={24} color={Colors.primary} />
+              <Text style={styles.clientsHeroText}>{clients.length} client{clients.length !== 1 ? "s" : ""} inscrit{clients.length !== 1 ? "s" : ""}</Text>
+            </View>
+            {clients.length === 0 ? (
+              <View style={styles.empty}>
+                <Feather name="user-x" size={48} color={Colors.border} />
+                <Text style={styles.emptyText}>Aucun client inscrit pour le moment</Text>
+              </View>
+            ) : (
+              clients.map((c) => {
+                const clientOrders = allOrders.filter((o) => o.userId === c.id);
+                const isExpanded = expandedClient === c.id;
+                return (
+                  <View key={c.id} style={styles.clientCard}>
+                    <TouchableOpacity style={styles.clientCardHeader} onPress={() => setExpandedClient(isExpanded ? null : c.id)} activeOpacity={0.7}>
+                      <View style={styles.clientAvatar}>
+                        <Text style={styles.clientAvatarText}>{c.prenom.charAt(0).toUpperCase()}{c.nom.charAt(0).toUpperCase()}</Text>
+                      </View>
+                      <View style={styles.clientInfo}>
+                        <Text style={styles.clientName}>{c.prenom} {c.nom}</Text>
+                        <Text style={styles.clientPhone}>📞 {c.telephone}</Text>
+                        {c.adresse ? <Text style={styles.clientAddr}>📍 {c.adresse}</Text> : null}
+                      </View>
+                      <View style={styles.clientRight}>
+                        <View style={styles.clientOrdersBadge}>
+                          <Text style={styles.clientOrdersNum}>{clientOrders.length}</Text>
+                          <Text style={styles.clientOrdersLabel}>cmd</Text>
+                        </View>
+                        <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color={Colors.textLight} />
+                      </View>
+                    </TouchableOpacity>
+
+                    {isExpanded && (
+                      <View style={styles.clientOrders}>
+                        {clientOrders.length === 0 ? (
+                          <Text style={styles.clientNoOrders}>Aucune commande</Text>
+                        ) : (
+                          clientOrders.map((o) => (
+                            <View key={o.id} style={styles.clientOrderRow}>
+                              <View style={styles.clientOrderLeft}>
+                                <Text style={styles.clientOrderId}>#{o.id.slice(-6).toUpperCase()}</Text>
+                                <Text style={styles.clientOrderDate}>{formatDate(o.date)}</Text>
+                                <Text style={styles.clientOrderAddr}>{o.adresse.quartier}, {o.adresse.rue}</Text>
+                                <Text style={styles.clientOrderItems} numberOfLines={1}>{o.items.map((i: any) => `${i.product.nom} ×${i.quantite}`).join(", ")}</Text>
+                              </View>
+                              <View style={styles.clientOrderRight}>
+                                <OrderStatusBadge statut={o.statut} size="sm" />
+                                <Text style={styles.clientOrderTotal}>{o.totalFinal.toLocaleString()} F</Text>
+                              </View>
+                            </View>
+                          ))
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </>
+        )}
+
+        {/* ── RÉGLAGES ── */}
+        {activeTab === "settings" && (
+          <>
+            <View style={styles.settingsCard}>
+              <View style={styles.settingsCardHeader}>
+                <Feather name="user" size={20} color={Colors.primary} />
+                <Text style={styles.settingsCardTitle}>Mon compte</Text>
+              </View>
+              <View style={styles.settingInfoRow}>
+                <Text style={styles.settingInfoLabel}>Identifiant actuel</Text>
+                <Text style={styles.settingInfoValue}>{user?.telephone}</Text>
+              </View>
+              <View style={styles.settingInfoRow}>
+                <Text style={styles.settingInfoLabel}>Nom</Text>
+                <Text style={styles.settingInfoValue}>{user?.prenom} {user?.nom}</Text>
+              </View>
+            </View>
+
+            <View style={styles.settingsCard}>
+              <View style={styles.settingsCardHeader}>
+                <Feather name="lock" size={20} color={Colors.primary} />
+                <Text style={styles.settingsCardTitle}>Modifier mes identifiants</Text>
+              </View>
+              <Text style={styles.settingsDesc}>Changez votre numéro de téléphone (identifiant de connexion) et/ou votre mot de passe.</Text>
+
+              {credsError ? <View style={styles.errBox}><Text style={styles.errText}>{credsError}</Text></View> : null}
+              {credsSuccess ? <View style={styles.successBox}><Text style={styles.successText}>{credsSuccess}</Text></View> : null}
+
+              <View>
+                <Text style={styles.fieldLabel}>Mot de passe actuel *</Text>
+                <View style={styles.passRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="Votre mot de passe actuel"
+                    placeholderTextColor={Colors.gray}
+                    value={credsForm.currentPassword}
+                    onChangeText={(v) => setCredsForm((f) => ({ ...f, currentPassword: v }))}
+                    secureTextEntry={!showCurPass}
+                  />
+                  <TouchableOpacity onPress={() => setShowCurPass((v) => !v)} style={styles.eyeBtn}>
+                    <Feather name={showCurPass ? "eye-off" : "eye"} size={18} color={Colors.gray} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View>
+                <Text style={styles.fieldLabel}>Nouveau numéro (optionnel)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={`Actuel : ${user?.telephone ?? ""}`}
+                  placeholderTextColor={Colors.gray}
+                  value={credsForm.newTelephone}
+                  onChangeText={(v) => setCredsForm((f) => ({ ...f, newTelephone: v }))}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View>
+                <Text style={styles.fieldLabel}>Nouveau mot de passe (optionnel)</Text>
+                <View style={styles.passRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="Minimum 4 caractères"
+                    placeholderTextColor={Colors.gray}
+                    value={credsForm.newPassword}
+                    onChangeText={(v) => setCredsForm((f) => ({ ...f, newPassword: v }))}
+                    secureTextEntry={!showNewPass}
+                  />
+                  <TouchableOpacity onPress={() => setShowNewPass((v) => !v)} style={styles.eyeBtn}>
+                    <Feather name={showNewPass ? "eye-off" : "eye"} size={18} color={Colors.gray} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {credsForm.newPassword ? (
+                <View>
+                  <Text style={styles.fieldLabel}>Confirmer le nouveau mot de passe</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Répétez le nouveau mot de passe"
+                    placeholderTextColor={Colors.gray}
+                    value={credsForm.confirmPassword}
+                    onChangeText={(v) => setCredsForm((f) => ({ ...f, confirmPassword: v }))}
+                    secureTextEntry={!showNewPass}
+                  />
+                </View>
+              ) : null}
+
+              <TouchableOpacity style={[styles.createBtn, credsLoading && { opacity: 0.7 }]} onPress={handleSaveCreds} disabled={credsLoading}>
+                {credsLoading ? <ActivityIndicator color={Colors.white} /> : (
+                  <>
+                    <Feather name="save" size={18} color={Colors.white} />
+                    <Text style={styles.createBtnText}>Enregistrer les modifications</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
       <ConfirmModal visible={showLogout} title="Déconnexion" message="Se déconnecter de l'administration ?"
         confirmLabel="Déconnecter" cancelLabel="Annuler" danger onConfirm={doLogout} onCancel={() => setShowLogout(false)} />
-      {/* Assign livreur modal */}
       {pendingAssign && (
-        <AssignModal
-          visible={!!pendingAssign}
-          livreurs={availableLivreurs}
-          onSelect={(id) => confirmAssign(id)}
-          onCancel={() => setPendingAssign(null)}
-        />
+        <AssignModal visible={!!pendingAssign} livreurs={availableLivreurs} onSelect={(id) => confirmAssign(id)} onCancel={() => setPendingAssign(null)} />
       )}
       <ConfirmModal visible={!!pendingStatus} title="Mettre à jour le statut" message="Confirmer le changement de statut ?"
         confirmLabel="Confirmer" cancelLabel="Annuler" onConfirm={confirmStatus} onCancel={() => setPendingStatus(null)} />
@@ -470,7 +642,7 @@ function AssignModal({ visible, livreurs, onSelect, onCancel }: {
                 <Text style={styles.assignName}>{l.prenom} {l.nom}</Text>
                 <Text style={styles.assignPhone}>{l.telephone}</Text>
               </View>
-              <Feather name="chevron-right" size={18} color={Colors.primary} style={{ marginLeft: "auto" }} />
+              <Feather name="chevron-right" size={18} color={Colors.primary} style={{ marginLeft: "auto" as any }} />
             </TouchableOpacity>
           ))
         )}
@@ -489,13 +661,14 @@ const STATUS_LABEL: Partial<Record<OrderStatus, string>> = {
   en_attente: "Commencer l'achat", achat_en_cours: "En route", en_livraison: "Marquer livré",
 };
 
-function AdminOrderCard({ order, livreurMap = {}, onUpdateStatus, onAssign }: {
-  order: Order; livreurMap?: Record<string, User>;
+function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus, onAssign }: {
+  order: Order; livreurMap?: Record<string, User>; clientMap?: Record<string, User>;
   onUpdateStatus?: (id: string, s: OrderStatus) => void;
   onAssign?: () => void;
 }) {
   const nextStatus = STATUS_NEXT[order.statut];
   const livreur = order.livreurId ? livreurMap[order.livreurId] : null;
+  const client = clientMap[order.userId];
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -508,15 +681,19 @@ function AdminOrderCard({ order, livreurMap = {}, onUpdateStatus, onAssign }: {
           <Text style={styles.cardTotal}>{order.totalFinal.toLocaleString()} FCFA</Text>
         </View>
       </View>
+      {client && (
+        <View style={styles.cardClient}>
+          <Feather name="user" size={12} color={Colors.primaryDark} />
+          <Text style={styles.cardClientText}>{client.prenom} {client.nom} · {client.telephone}</Text>
+        </View>
+      )}
       <View style={styles.cardAddress}>
         <Feather name="map-pin" size={12} color={Colors.primary} />
-        <Text style={styles.cardAddressText}>{order.adresse.quartier}, {order.adresse.rue}</Text>
+        <Text style={styles.cardAddressText}>{order.adresse.quartier}, {order.adresse.rue}{order.adresse.description ? ` (${order.adresse.description})` : ""}</Text>
       </View>
       <View style={styles.cardItems}>
         <Feather name="package" size={12} color={Colors.textLight} />
-        <Text style={styles.cardItemsText} numberOfLines={1}>
-          {order.items.map((i) => `${i.product.nom} ×${i.quantite}`).join(", ")}
-        </Text>
+        <Text style={styles.cardItemsText} numberOfLines={1}>{order.items.map((i: any) => `${i.product.nom} ×${i.quantite}`).join(", ")}</Text>
       </View>
       <View style={styles.cardFinance}>
         <Text style={styles.cardFinanceText}>
@@ -562,15 +739,17 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: "700", color: Colors.white, fontFamily: "Inter_700Bold" },
   headerSub: { fontSize: 12, color: "rgba(255,255,255,0.8)", fontFamily: "Inter_400Regular" },
   logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  tabsRow: { flexDirection: "row", backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  tab: { flex: 1, paddingVertical: 12, alignItems: "center", borderBottomWidth: 2, borderBottomColor: "transparent" },
+
+  tabsScroll: { backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border, flexGrow: 0 },
+  tabsRow: { flexDirection: "row", paddingHorizontal: 8 },
+  tab: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabActive: { borderBottomColor: Colors.primary },
   tabText: { fontSize: 12, fontWeight: "600", color: Colors.textLight, fontFamily: "Inter_600SemiBold" },
   tabTextActive: { color: Colors.primary },
+
   content: { padding: 14, gap: 10 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold", marginTop: 6 },
 
-  // Finance
   financeHeroRow: { flexDirection: "row", gap: 10 },
   financeHero: { backgroundColor: Colors.primary, borderRadius: 16, padding: 16, alignItems: "center", gap: 6 },
   financeHeroLabel: { fontSize: 11, color: "rgba(255,255,255,0.8)", fontFamily: "Inter_400Regular", textAlign: "center" },
@@ -589,25 +768,25 @@ const styles = StyleSheet.create({
   bTotalLabel: { fontSize: 14, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
   bTotalValue: { fontSize: 18, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
 
-  // Daily cards
   dayCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 16, gap: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   dayHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   dayTitle: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold", flex: 1, textTransform: "capitalize" },
   dayNetBadge: { backgroundColor: Colors.primaryLighter, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   dayNetText: { fontSize: 13, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
-  dayStats: { flexDirection: "row", gap: 0 },
+  dayStats: { flexDirection: "row" },
   dayStat: { flex: 1, alignItems: "center", gap: 2 },
   dayStatVal: { fontSize: 12, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
   dayStatLabel: { fontSize: 10, color: Colors.textLight, fontFamily: "Inter_400Regular" },
 
-  // Orders
   card: { backgroundColor: Colors.white, borderRadius: 14, padding: 14, gap: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   cardId: { fontSize: 14, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
   cardDate: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 1 },
   cardTotal: { fontSize: 13, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
-  cardAddress: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: Colors.primaryLighter, padding: 8, borderRadius: 8 },
-  cardAddressText: { flex: 1, fontSize: 12, color: Colors.primaryDark, fontFamily: "Inter_400Regular" },
+  cardClient: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.primaryLighter, padding: 8, borderRadius: 8 },
+  cardClientText: { flex: 1, fontSize: 12, color: Colors.primaryDark, fontFamily: "Inter_600SemiBold" },
+  cardAddress: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: Colors.background, padding: 8, borderRadius: 8 },
+  cardAddressText: { flex: 1, fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
   cardItems: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
   cardItemsText: { flex: 1, fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
   cardFinance: { backgroundColor: Colors.lightGray, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
@@ -620,7 +799,6 @@ const styles = StyleSheet.create({
   statusBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.primaryDark, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   statusBtnText: { color: Colors.white, fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
 
-  // Assign modal
   assignOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end", zIndex: 999 },
   assignModal: { backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
   assignTitle: { fontSize: 16, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 4 },
@@ -633,7 +811,6 @@ const styles = StyleSheet.create({
   assignCancel: { padding: 14, alignItems: "center", borderTopWidth: 1, borderTopColor: Colors.border, marginTop: 4 },
   assignCancelText: { fontSize: 15, color: Colors.red, fontFamily: "Inter_600SemiBold" },
 
-  // Team
   teamToggle: { flexDirection: "row", backgroundColor: Colors.lightGray, borderRadius: 14, padding: 4, gap: 4 },
   teamToggleBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10 },
   teamToggleBtnActive: { backgroundColor: Colors.primary },
@@ -657,10 +834,47 @@ const styles = StyleSheet.create({
   memberAvatarText: { fontSize: 16, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
   memberInfo: { flex: 1, gap: 3 },
   memberName: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
-  memberPhone: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
-  memberBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-start" },
-  memberBadgeText: { fontSize: 10, color: Colors.primaryDark, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
+  memberPhone: { fontSize: 13, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  memberBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  memberBadgeText: { fontSize: 11, fontWeight: "600", color: Colors.primaryDark, fontFamily: "Inter_600SemiBold" },
   deleteBtn: { padding: 8 },
-  empty: { alignItems: "center", justifyContent: "center", paddingVertical: 40, gap: 12 },
+  empty: { alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },
   emptyText: { fontSize: 14, color: Colors.textLight, fontFamily: "Inter_400Regular", textAlign: "center" },
+
+  // Clients tab
+  clientsHero: { backgroundColor: Colors.primaryLighter, borderRadius: 16, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  clientsHeroText: { fontSize: 16, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
+  clientCard: { backgroundColor: Colors.white, borderRadius: 14, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  clientCardHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  clientAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
+  clientAvatarText: { fontSize: 16, fontWeight: "700", color: Colors.white, fontFamily: "Inter_700Bold" },
+  clientInfo: { flex: 1, gap: 2 },
+  clientName: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  clientPhone: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  clientAddr: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  clientRight: { alignItems: "center", gap: 6 },
+  clientOrdersBadge: { alignItems: "center", backgroundColor: Colors.primaryLighter, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  clientOrdersNum: { fontSize: 16, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  clientOrdersLabel: { fontSize: 9, color: Colors.primaryDark, fontFamily: "Inter_400Regular" },
+  clientOrders: { borderTopWidth: 1, borderTopColor: Colors.border, padding: 12, gap: 10 },
+  clientNoOrders: { fontSize: 13, color: Colors.textLight, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 8 },
+  clientOrderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10, backgroundColor: Colors.background, borderRadius: 10, padding: 10 },
+  clientOrderLeft: { flex: 1, gap: 2 },
+  clientOrderId: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  clientOrderDate: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  clientOrderAddr: { fontSize: 12, color: Colors.primary, fontFamily: "Inter_400Regular" },
+  clientOrderItems: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  clientOrderRight: { alignItems: "flex-end", gap: 4 },
+  clientOrderTotal: { fontSize: 13, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+
+  // Settings tab
+  settingsCard: { backgroundColor: Colors.white, borderRadius: 18, padding: 18, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  settingsCardHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 2 },
+  settingsCardTitle: { fontSize: 16, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  settingsDesc: { fontSize: 13, color: Colors.textLight, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  settingInfoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  settingInfoLabel: { fontSize: 13, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  settingInfoValue: { fontSize: 14, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
+  passRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.background, borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10 },
+  eyeBtn: { paddingHorizontal: 12, paddingVertical: 11 },
 });

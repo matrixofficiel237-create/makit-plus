@@ -28,5 +28,43 @@
       "role": "client"
     }
   ],
-  "orders": []
+  "orders": [
+    {
+      "userId": "17749789639437lhtvxsu9",
+      "items": [
+        {
+          "product": {
+            "id": "item-17749792798687htsl",
+            "nom": "Tomate",
+            "categorie": "courses",
+            "prix": 500,
+            "emoji": "🍅"
+          },
+          "quantite": 1
+        },
+        {
+          "product": {
+            "id": "item-1774979295464gkxzw",
+            "nom": "Plantain",
+            "categorie": "courses",
+            "prix": 500,
+            "emoji": "🍌"
+          },
+          "quantite": 1
+        }
+      ],
+      "adresse": {
+        "quartier": "Soa",
+        "rue": "Dallas",
+        "description": "Bleue"
+      },
+      "paiement": "livraison",
+      "totalProduits": 1000,
+      "fraisLivraison": 750,
+      "totalFinal": 1750,
+      "id": "1774979338603pprjhr6ig",
+      "date": "2026-03-31T17:48:58.603Z",
+      "statut": "en_attente"
+    }
+  ]
 }

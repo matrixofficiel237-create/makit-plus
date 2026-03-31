@@ -84,6 +84,10 @@ function ClassicTabLayout() {
       }}
     >
       <Tabs.Screen
+        name="index"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="home"
         options={{
           title: "Accueil",

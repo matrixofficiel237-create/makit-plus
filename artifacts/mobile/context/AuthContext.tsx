@@ -17,7 +17,8 @@ interface AuthContextType {
   login: (telephone: string, motDePasse: string) => Promise<User | null>;
   register: (data: RegisterData) => Promise<User | null>;
   logout: () => Promise<void>;
-  forgotPassword: (telephone: string) => Promise<boolean>;
+  resetPassword: (telephone: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>;
+  updateCredentials: (currentPassword: string, patch: { newTelephone?: string; newPassword?: string }) => Promise<{ ok: boolean; error?: string }>;
   createManagedUser: (data: ManagedUserData) => Promise<User | null>;
   getManagedUsers: (role?: string) => Promise<User[]>;
   deleteManagedUser: (id: string) => Promise<void>;
@@ -78,11 +79,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  async function forgotPassword(telephone: string): Promise<boolean> {
+  async function resetPassword(telephone: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
     try {
-      const { users } = await api.users.getAll();
-      return users.some((u: any) => u.telephone === telephone);
-    } catch { return false; }
+      await api.auth.resetPassword(telephone, newPassword);
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e.message || "Erreur réseau" };
+    }
+  }
+
+  async function updateCredentials(currentPassword: string, patch: { newTelephone?: string; newPassword?: string }): Promise<{ ok: boolean; error?: string }> {
+    if (!user) return { ok: false, error: "Non connecté" };
+    try {
+      const { user: updated } = await api.auth.updateCredentials(user.id, currentPassword, patch);
+      const merged = { ...user, ...updated };
+      await AsyncStorage.setItem("makit_user", JSON.stringify(merged));
+      setUser(merged);
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e.message || "Erreur réseau" };
+    }
   }
 
   async function createManagedUser(data: ManagedUserData): Promise<User | null> {
@@ -104,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, forgotPassword, createManagedUser, getManagedUsers, deleteManagedUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, resetPassword, updateCredentials, createManagedUser, getManagedUsers, deleteManagedUser }}>
       {children}
     </AuthContext.Provider>
   );

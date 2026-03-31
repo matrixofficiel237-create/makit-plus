@@ -108,6 +108,14 @@ export function deleteUser(id: string): boolean {
   return true;
 }
 
+export function updateUser(id: string, patch: Partial<Omit<StoredUser, "id" | "role">>): StoredUser | null {
+  const idx = store.users.findIndex((u) => u.id === id);
+  if (idx === -1) return null;
+  store.users[idx] = { ...store.users[idx], ...patch };
+  saveStore();
+  return store.users[idx];
+}
+
 // ── Orders ──
 export function getAllOrders(): StoredOrder[] {
   return [...store.orders].sort(
