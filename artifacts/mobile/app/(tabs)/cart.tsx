@@ -33,8 +33,10 @@ export default function CartScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ quartier: false, rue: false });
   const [confirmed, setConfirmed] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   async function handleConfirm() {
+    setSubmitError("");
     const newErrors = {
       quartier: !quartier.trim(),
       rue: !rue.trim(),
@@ -60,7 +62,7 @@ export default function CartScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setConfirmed(true);
     } catch {
-      // ignore
+      setSubmitError("Erreur réseau. Vérifiez votre connexion et réessayez.");
     } finally {
       setLoading(false);
     }
@@ -128,6 +130,8 @@ export default function CartScreen() {
     );
   }
 
+  const CONFIRM_BAR_HEIGHT = 120 + botPad;
+
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
       <View style={styles.header}>
@@ -137,7 +141,7 @@ export default function CartScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: CONFIRM_BAR_HEIGHT + 16 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -267,12 +271,13 @@ export default function CartScreen() {
             {paiement === "mobile_money" && <Feather name="check-circle" size={22} color={Colors.primary} />}
           </TouchableOpacity>
         </View>
-
-        <View style={{ height: 140 }} />
       </ScrollView>
 
-      {/* Bouton Confirmer */}
+      {/* Bouton Confirmer — toujours visible en bas */}
       <View style={[styles.confirmBar, { paddingBottom: botPad + 12 }]}>
+        {submitError ? (
+          <Text style={styles.submitError}>{submitError}</Text>
+        ) : null}
         <View style={styles.confirmBarTop}>
           <Text style={styles.confirmBarLabel}>Total</Text>
           <Text style={styles.confirmBarTotal}>{totalFinal.toLocaleString()} FCFA</Text>
@@ -281,6 +286,7 @@ export default function CartScreen() {
           style={[styles.confirmBtn, loading && styles.confirmBtnDisabled]}
           onPress={handleConfirm}
           disabled={loading}
+          activeOpacity={0.8}
         >
           {loading ? (
             <ActivityIndicator color={Colors.white} size="small" />
@@ -434,17 +440,28 @@ const styles = StyleSheet.create({
   payName: { fontSize: 14, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
   payDesc: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 2 },
   confirmBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: Colors.white,
     paddingHorizontal: 16,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    gap: 10,
+    gap: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
+    zIndex: 10,
+  },
+  submitError: {
+    fontSize: 13,
+    color: Colors.red,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
   },
   confirmBarTop: {
     flexDirection: "row",

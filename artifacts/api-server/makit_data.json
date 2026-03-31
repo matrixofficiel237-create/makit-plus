@@ -1,0 +1,32 @@
+{
+  "users": [
+    {
+      "id": "livreur-1",
+      "nom": "Makit+",
+      "prenom": "Livreur",
+      "telephone": "0000000000",
+      "adresse": "Makit+ HQ",
+      "motDePasse": "livreur123",
+      "role": "livreur"
+    },
+    {
+      "id": "admin-1",
+      "nom": "Makit+",
+      "prenom": "Admin",
+      "telephone": "admin",
+      "adresse": "Makit+ HQ",
+      "motDePasse": "admin123",
+      "role": "admin"
+    },
+    {
+      "id": "17749789639437lhtvxsu9",
+      "nom": "Adeba",
+      "prenom": "Dane",
+      "telephone": "677747264",
+      "adresse": "Soa",
+      "motDePasse": "azerty",
+      "role": "client"
+    }
+  ],
+  "orders": []
+}
