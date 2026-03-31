@@ -21,7 +21,9 @@ import * as Haptics from "expo-haptics";
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const botPad = Platform.OS === "web" ? 34 : insets.bottom;
+  // Hauteur totale de la barre d'onglets (tab bar absolu) pour chaque plateforme
+  const TAB_BAR_BOTTOM =
+    Platform.OS === "web" ? 84 : Platform.OS === "ios" ? 49 + insets.bottom : 56;
   const { items, removeItem, updateQuantite, clearCart, totalProduits, fraisLivraison, totalFinal } = useCart();
   const { user } = useAuth();
   const { createOrder } = useOrders();
@@ -130,8 +132,6 @@ export default function CartScreen() {
     );
   }
 
-  const CONFIRM_BAR_HEIGHT = 120 + botPad;
-
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
       <View style={styles.header}>
@@ -141,7 +141,7 @@ export default function CartScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: CONFIRM_BAR_HEIGHT + 16 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 16 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -273,8 +273,8 @@ export default function CartScreen() {
         </View>
       </ScrollView>
 
-      {/* Bouton Confirmer — toujours visible en bas */}
-      <View style={[styles.confirmBar, { paddingBottom: botPad + 12 }]}>
+      {/* Bouton Confirmer — au-dessus de la barre de navigation */}
+      <View style={styles.confirmBar}>
         {submitError ? (
           <Text style={styles.submitError}>{submitError}</Text>
         ) : null}
@@ -298,6 +298,8 @@ export default function CartScreen() {
           )}
         </TouchableOpacity>
       </View>
+      {/* Espace pour la barre de navigation */}
+      <View style={{ height: TAB_BAR_BOTTOM }} />
     </View>
   );
 }
@@ -440,13 +442,10 @@ const styles = StyleSheet.create({
   payName: { fontSize: 14, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
   payDesc: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 2 },
   confirmBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     backgroundColor: Colors.white,
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     gap: 8,
@@ -455,7 +454,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
-    zIndex: 10,
   },
   submitError: {
     fontSize: 13,
