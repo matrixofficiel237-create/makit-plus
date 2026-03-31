@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontFamily: "Inter_700Bold",
   },
-  content: { padding: 16, gap: 10 },
+  content: { padding: 16, gap: 10, paddingBottom: 100 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",

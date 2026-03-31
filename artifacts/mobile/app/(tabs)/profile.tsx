@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 14 },
   headerTitle: { fontSize: 20, fontWeight: "700", color: Colors.white, fontFamily: "Inter_700Bold" },
-  content: { padding: 16, gap: 0 },
+  content: { padding: 16, gap: 0, paddingBottom: 100 },
   avatarSection: { alignItems: "center", backgroundColor: Colors.white, borderRadius: 20, padding: 24, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", marginBottom: 12 },
   avatarText: { fontSize: 28, fontWeight: "700", color: Colors.white, fontFamily: "Inter_700Bold" },

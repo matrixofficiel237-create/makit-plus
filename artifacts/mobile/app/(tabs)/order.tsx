@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16, gap: 16 },
+  scrollContent: { padding: 16, gap: 16, paddingBottom: 100 },
   addCard: {
     backgroundColor: Colors.white,
     borderRadius: 18,

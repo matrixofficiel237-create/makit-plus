@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
   header: {
     flexDirection: "row",
