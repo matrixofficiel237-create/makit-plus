@@ -41,6 +41,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f9b34950-69e5-4f2a-93e1-5b10a62fbad2"
+      }
+    },
+    "owner": "makitpluss-organization"
   }
 }
