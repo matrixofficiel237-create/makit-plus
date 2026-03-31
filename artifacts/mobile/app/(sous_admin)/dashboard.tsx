@@ -305,11 +305,26 @@ function SousAdminOrderCard({ order, onUpdateStatus, onAssign }: {
         <Feather name="map-pin" size={12} color={Colors.primary} />
         <Text style={styles.cardAddressText}>{order.adresse.quartier}, {order.adresse.rue}</Text>
       </View>
-      <View style={styles.cardItems}>
-        <Feather name="package" size={12} color={Colors.textLight} />
-        <Text style={styles.cardItemsText} numberOfLines={1}>
-          {order.items.map((i) => `${i.product.nom} ×${i.quantite}`).join(", ")}
-        </Text>
+      <View style={styles.itemsList}>
+        {order.items.map((item, i) => (
+          <View key={i} style={styles.itemRow}>
+            <Text style={styles.itemName}>{item.product.emoji} {item.product.nom} <Text style={styles.itemQty}>×{item.quantite}</Text></Text>
+            <Text style={styles.itemPrice}>{(item.product.prix * item.quantite).toLocaleString()} F</Text>
+          </View>
+        ))}
+        <View style={styles.itemDivider} />
+        <View style={styles.itemRow}>
+          <Text style={styles.itemSubLabel}>Sous-total articles</Text>
+          <Text style={styles.itemSubValue}>{order.totalProduits.toLocaleString()} F</Text>
+        </View>
+        <View style={styles.itemRow}>
+          <Text style={styles.itemSubLabel}>Frais de livraison</Text>
+          <Text style={styles.itemSubValue}>{order.fraisLivraison} F</Text>
+        </View>
+        <View style={[styles.itemRow, styles.itemTotalRow]}>
+          <Text style={styles.itemTotalLabel}>Total final</Text>
+          <Text style={styles.itemTotalValue}>{order.totalFinal.toLocaleString()} FCFA</Text>
+        </View>
       </View>
       <View style={styles.cardActions}>
         {!order.livreurId && onAssign && (
@@ -375,8 +390,17 @@ const styles = StyleSheet.create({
   cardTotal: { fontSize: 13, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
   cardAddress: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: Colors.primaryLighter, padding: 8, borderRadius: 8 },
   cardAddressText: { flex: 1, fontSize: 12, color: Colors.primaryDark, fontFamily: "Inter_400Regular" },
-  cardItems: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
-  cardItemsText: { flex: 1, fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  itemsList: { backgroundColor: Colors.background, borderRadius: 10, padding: 10, gap: 6 },
+  itemRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  itemName: { flex: 1, fontSize: 12, color: Colors.text, fontFamily: "Inter_500Medium" },
+  itemQty: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  itemPrice: { fontSize: 12, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold", marginLeft: 8 },
+  itemDivider: { borderTopWidth: 1, borderTopColor: Colors.border, marginVertical: 4 },
+  itemSubLabel: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  itemSubValue: { fontSize: 11, color: Colors.text, fontFamily: "Inter_500Medium" },
+  itemTotalRow: { marginTop: 2 },
+  itemTotalLabel: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  itemTotalValue: { fontSize: 13, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
   cardActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   assignBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.primary, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   assignBtnText: { color: Colors.white, fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },

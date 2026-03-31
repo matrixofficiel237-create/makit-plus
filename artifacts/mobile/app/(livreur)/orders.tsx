@@ -53,15 +53,26 @@ function LivreurOrderCard({ order, onUpdateStatus }: {
         <OrderStatusBadge statut={order.statut} size="sm" />
       </View>
 
-      <View style={styles.itemsPreview}>
-        {order.items.slice(0, 4).map((item, i) => (
-          <Text key={i} style={styles.itemChip}>
-            {item.product.emoji} {item.product.nom} ×{item.quantite}
-          </Text>
+      <View style={styles.itemsList}>
+        {order.items.map((item, i) => (
+          <View key={i} style={styles.itemRow}>
+            <Text style={styles.itemName}>{item.product.emoji} {item.product.nom} <Text style={styles.itemQty}>×{item.quantite}</Text></Text>
+            <Text style={styles.itemPrice}>{(item.product.prix * item.quantite).toLocaleString()} F</Text>
+          </View>
         ))}
-        {order.items.length > 4 && (
-          <Text style={styles.moreItems}>+{order.items.length - 4} autres</Text>
-        )}
+        <View style={styles.itemDivider} />
+        <View style={styles.itemRow}>
+          <Text style={styles.itemSubLabel}>Sous-total articles</Text>
+          <Text style={styles.itemSubValue}>{order.totalProduits.toLocaleString()} F</Text>
+        </View>
+        <View style={styles.itemRow}>
+          <Text style={styles.itemSubLabel}>Frais de livraison</Text>
+          <Text style={styles.itemSubValue}>{order.fraisLivraison} F</Text>
+        </View>
+        <View style={[styles.itemRow, styles.itemTotalRow]}>
+          <Text style={styles.itemTotalLabel}>Total final</Text>
+          <Text style={styles.itemTotalValue}>{order.totalFinal.toLocaleString()} FCFA</Text>
+        </View>
       </View>
 
       <View style={styles.addressRow}>
@@ -72,13 +83,10 @@ function LivreurOrderCard({ order, onUpdateStatus }: {
         </Text>
       </View>
 
-      <View style={styles.financialRow}>
-        <View style={styles.totalBlock}>
-          <Text style={styles.paymentMethod}>
-            {order.paiement === "livraison" ? "💵 Paiement à la livraison" : "📱 Mobile Money"}
-          </Text>
-          <Text style={styles.orderTotal}>{order.totalFinal.toLocaleString()} FCFA</Text>
-        </View>
+      <View style={styles.paymentRow}>
+        <Text style={styles.paymentMethod}>
+          {order.paiement === "livraison" ? "💵 Paiement à la livraison" : "📱 Mobile Money"}
+        </Text>
         {order.statut === "livre" && (
           <View style={styles.gainBadge}>
             <Feather name="dollar-sign" size={13} color={Colors.white} />
@@ -318,15 +326,21 @@ const styles = StyleSheet.create({
   orderCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   orderId: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
   orderDate: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 2 },
-  itemsPreview: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  itemChip: { backgroundColor: Colors.lightGray, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, fontSize: 12, color: Colors.text, fontFamily: "Inter_400Regular" },
-  moreItems: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", paddingVertical: 4 },
+  itemsList: { backgroundColor: Colors.background, borderRadius: 10, padding: 10, gap: 6 },
+  itemRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  itemName: { flex: 1, fontSize: 12, color: Colors.text, fontFamily: "Inter_500Medium" },
+  itemQty: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  itemPrice: { fontSize: 12, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold", marginLeft: 8 },
+  itemDivider: { borderTopWidth: 1, borderTopColor: Colors.border, marginVertical: 4 },
+  itemSubLabel: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  itemSubValue: { fontSize: 11, color: Colors.text, fontFamily: "Inter_500Medium" },
+  itemTotalRow: { marginTop: 2 },
+  itemTotalLabel: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  itemTotalValue: { fontSize: 13, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
   addressRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: Colors.primaryLighter, padding: 10, borderRadius: 10 },
   addressText: { flex: 1, fontSize: 13, color: Colors.primaryDark, fontFamily: "Inter_500Medium" },
-  financialRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  totalBlock: { gap: 2 },
+  paymentRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   paymentMethod: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
-  orderTotal: { fontSize: 16, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
   gainBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.primary, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   gainBadgeText: { color: Colors.white, fontSize: 13, fontWeight: "700", fontFamily: "Inter_700Bold" },
   actionBtn: { backgroundColor: Colors.orange, borderRadius: 12, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
