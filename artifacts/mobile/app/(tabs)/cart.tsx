@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ export default function CartScreen() {
   const { user } = useAuth();
   const { createOrder } = useOrders();
 
+  const scrollRef = useRef<ScrollView>(null);
   const [quartier, setQuartier] = useState("");
   const [rue, setRue] = useState("");
   const [description, setDescription] = useState("");
@@ -44,7 +45,12 @@ export default function CartScreen() {
       rue: !rue.trim(),
     };
     setErrors(newErrors);
-    if (newErrors.quartier || newErrors.rue) return;
+    if (newErrors.quartier || newErrors.rue) {
+      setSubmitError("Veuillez remplir votre adresse de livraison (quartier et rue)");
+      // Remonter vers les champs vides
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
     if (!user) {
       router.replace("/(auth)/login");
       return;
@@ -140,6 +146,7 @@ export default function CartScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 16 }]}
         showsVerticalScrollIndicator={false}
@@ -276,7 +283,10 @@ export default function CartScreen() {
       {/* Bouton Confirmer — au-dessus de la barre de navigation */}
       <View style={styles.confirmBar}>
         {submitError ? (
-          <Text style={styles.submitError}>{submitError}</Text>
+          <View style={styles.submitErrorBox}>
+            <Feather name="alert-circle" size={15} color={Colors.red} />
+            <Text style={styles.submitError}>{submitError}</Text>
+          </View>
         ) : null}
         <View style={styles.confirmBarTop}>
           <Text style={styles.confirmBarLabel}>Total</Text>
@@ -455,11 +465,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  submitErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFEBEE",
+    borderWidth: 1,
+    borderColor: Colors.red,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   submitError: {
+    flex: 1,
     fontSize: 13,
     color: Colors.red,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
+    fontFamily: "Inter_500Medium",
   },
   confirmBarTop: {
     flexDirection: "row",
