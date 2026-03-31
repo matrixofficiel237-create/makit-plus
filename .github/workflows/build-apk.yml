@@ -27,11 +27,12 @@ jobs:
         with:
           version: 10
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Install EAS CLI
         run: npm install -g eas-cli
+
+      - name: Install mobile dependencies
+        working-directory: artifacts/mobile
+        run: npm install --legacy-peer-deps
 
       - name: Build APK
         working-directory: artifacts/mobile
@@ -39,7 +40,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile preview --non-interactive
 
-      - name: Afficher le lien de téléchargement
+      - name: Lien de téléchargement
         run: |
           echo "✅ Build terminé !"
-          echo "📱 Téléchargez votre APK sur : https://expo.dev/accounts/makitpluss-organization/projects/mobile/builds"
+          echo "📱 APK disponible sur : https://expo.dev/accounts/makitpluss-organization/projects/mobile/builds"
