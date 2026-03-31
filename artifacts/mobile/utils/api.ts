@@ -1,0 +1,42 @@
+const domain = process.env.EXPO_PUBLIC_DOMAIN;
+export const API_BASE = domain ? `https://${domain}/api` : "http://localhost:8080/api";
+
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Erreur serveur");
+  return data as T;
+}
+
+export const api = {
+  auth: {
+    login: (telephone: string, motDePasse: string) =>
+      apiFetch<{ user: any }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ telephone, motDePasse }),
+      }),
+    register: (body: { nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string }) =>
+      apiFetch<{ user: any }>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+  },
+  orders: {
+    getAll: () => apiFetch<{ orders: any[] }>("/orders"),
+    getByUser: (userId: string) => apiFetch<{ orders: any[] }>(`/orders?userId=${userId}`),
+    create: (order: any) =>
+      apiFetch<{ order: any }>("/orders", { method: "POST", body: JSON.stringify(order) }),
+    update: (id: string, patch: any) =>
+      apiFetch<{ order: any }>(`/orders/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  },
+  users: {
+    getAll: (role?: string) =>
+      apiFetch<{ users: any[] }>(`/users${role ? `?role=${role}` : ""}`),
+    create: (body: { nom: string; prenom: string; telephone: string; motDePasse: string; role: string; adresse?: string }) =>
+      apiFetch<{ user: any }>("/users", { method: "POST", body: JSON.stringify(body) }),
+    delete: (id: string) => apiFetch<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
+  },
+};

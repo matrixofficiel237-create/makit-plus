@@ -7,13 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, User } from "@/context/AuthContext";
 import { useOrders, Order, OrderStatus } from "@/context/OrderContext";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
 
-const LIVREUR_ID = "livreur-1";
 const LIVREUR_PART = 400;
 const ENTREPRISE_PART = 350;
 
@@ -31,19 +30,24 @@ function isToday(dateStr: string): boolean {
 export default function SousAdminDashboard() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const { user, logout } = useAuth();
+  const { user, logout, getManagedUsers } = useAuth();
   const { getAllOrders, assignLivreur, updateOrderStatus, refreshOrders } = useOrders();
   const [refreshing, setRefreshing] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [pendingAssign, setPendingAssign] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<{ orderId: string; status: OrderStatus } | null>(null);
   const [activeTab, setActiveTab] = useState<"orders" | "recette">("orders");
+  const [livreurs, setLivreurs] = useState<User[]>([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
-  useFocusEffect(useCallback(() => { refreshOrders(); }, []));
+  useFocusEffect(useCallback(() => {
+    refreshOrders();
+    getManagedUsers("livreur").then(setLivreurs);
+  }, []));
 
   async function onRefresh() {
     setRefreshing(true);
-    await refreshOrders();
+    await Promise.all([refreshOrders(), getManagedUsers("livreur").then(setLivreurs)]);
     setRefreshing(false);
   }
 
@@ -53,11 +57,12 @@ export default function SousAdminDashboard() {
     router.replace("/(auth)/login");
   }
 
-  async function confirmAssign() {
+  async function confirmAssign(livreurId: string) {
     if (!pendingAssign) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await assignLivreur(pendingAssign, LIVREUR_ID);
+    await assignLivreur(pendingAssign, livreurId);
     setPendingAssign(null);
+    setShowAssignModal(false);
   }
 
   async function confirmStatus() {
@@ -223,12 +228,49 @@ export default function SousAdminDashboard() {
       <ConfirmModal visible={showLogout} title="Déconnexion" message="Se déconnecter ?"
         confirmLabel="Déconnecter" cancelLabel="Annuler" danger
         onConfirm={doLogout} onCancel={() => setShowLogout(false)} />
-      <ConfirmModal visible={!!pendingAssign} title="Assigner le livreur" message="Assigner cette commande au livreur Makit+ ?"
-        confirmLabel="Assigner" cancelLabel="Annuler"
-        onConfirm={confirmAssign} onCancel={() => setPendingAssign(null)} />
+      {pendingAssign && (
+        <AssignModal
+          visible={!!pendingAssign}
+          livreurs={livreurs}
+          onSelect={(id) => confirmAssign(id)}
+          onCancel={() => setPendingAssign(null)}
+        />
+      )}
       <ConfirmModal visible={!!pendingStatus} title="Mettre à jour" message="Confirmer le changement de statut ?"
         confirmLabel="Confirmer" cancelLabel="Annuler"
         onConfirm={confirmStatus} onCancel={() => setPendingStatus(null)} />
+    </View>
+  );
+}
+
+function AssignModal({ visible, livreurs, onSelect, onCancel }: {
+  visible: boolean; livreurs: User[]; onSelect: (id: string) => void; onCancel: () => void;
+}) {
+  if (!visible) return null;
+  return (
+    <View style={styles.assignOverlay}>
+      <View style={styles.assignModal}>
+        <Text style={styles.assignTitle}>Choisir un livreur</Text>
+        {livreurs.length === 0 ? (
+          <Text style={styles.assignEmpty}>Aucun livreur disponible. Contactez l'admin principal.</Text>
+        ) : (
+          livreurs.map((l) => (
+            <TouchableOpacity key={l.id} style={styles.assignOption} onPress={() => onSelect(l.id)}>
+              <View style={styles.assignAvatar}>
+                <Text style={styles.assignAvatarText}>{l.prenom.charAt(0)}{l.nom.charAt(0)}</Text>
+              </View>
+              <View>
+                <Text style={styles.assignName}>{l.prenom} {l.nom}</Text>
+                <Text style={styles.assignPhone}>{l.telephone}</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={Colors.primary} style={{ marginLeft: "auto" as any }} />
+            </TouchableOpacity>
+          ))
+        )}
+        <TouchableOpacity style={styles.assignCancel} onPress={onCancel}>
+          <Text style={styles.assignCancelText}>Annuler</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -344,4 +386,15 @@ const styles = StyleSheet.create({
   statusBtnText: { color: Colors.white, fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   empty: { alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },
   emptyText: { fontSize: 14, color: Colors.textLight, fontFamily: "Inter_400Regular", textAlign: "center" },
+  assignOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end", zIndex: 999 },
+  assignModal: { backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
+  assignTitle: { fontSize: 16, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold", textAlign: "center", marginBottom: 4 },
+  assignEmpty: { fontSize: 13, color: Colors.textLight, textAlign: "center", paddingVertical: 20, fontFamily: "Inter_400Regular" },
+  assignOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12, backgroundColor: Colors.background, borderRadius: 12 },
+  assignAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primaryLighter, alignItems: "center", justifyContent: "center" },
+  assignAvatarText: { fontSize: 15, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  assignName: { fontSize: 14, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  assignPhone: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  assignCancel: { padding: 14, alignItems: "center", borderTopWidth: 1, borderTopColor: Colors.border, marginTop: 4 },
+  assignCancelText: { fontSize: 15, color: Colors.red, fontFamily: "Inter_600SemiBold" },
 });

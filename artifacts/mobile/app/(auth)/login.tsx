@@ -130,12 +130,6 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Comptes de test */}
-          <View style={styles.testAccounts}>
-            <Text style={styles.testTitle}>Comptes de démonstration :</Text>
-            <Text style={styles.testItem}>🛒 Livreur : 0000000000 / livreur123</Text>
-            <Text style={styles.testItem}>⚙️ Admin : admin / admin123</Text>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
