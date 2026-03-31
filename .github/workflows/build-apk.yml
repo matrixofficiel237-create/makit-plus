@@ -1,0 +1,45 @@
+name: Build APK Android
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'artifacts/mobile/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK Makit+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build APK
+        working-directory: artifacts/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile preview --non-interactive
+
+      - name: Afficher le lien de téléchargement
+        run: |
+          echo "✅ Build terminé !"
+          echo "📱 Téléchargez votre APK sur : https://expo.dev/accounts/makitpluss-organization/projects/mobile/builds"
