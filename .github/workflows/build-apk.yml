@@ -31,34 +31,23 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Simplifier pnpm-workspace.yaml pour le build
-        run: |
-          cat > pnpm-workspace.yaml << 'EOF'
-          packages:
-            - 'artifacts/*'
-          EOF
-
-      - name: Installer les dependances pnpm (workspace)
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
-
-      - name: Build APK localement
+      - name: Installer les dependances
         working-directory: artifacts/mobile
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive --local --output /tmp/makit-plus.apk
+        run: npm install --legacy-peer-deps
+
+      - name: Expo Prebuild (generer le projet Android)
+        working-directory: artifacts/mobile
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Build APK debug
+        working-directory: artifacts/mobile/android
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Makit-Plus-APK
-          path: /tmp/makit-plus.apk
+          path: artifacts/mobile/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+          if-no-files-found: error
 
