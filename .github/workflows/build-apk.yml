@@ -17,6 +17,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,12 +38,16 @@ jobs:
         working-directory: artifacts/mobile
         run: npm install --legacy-peer-deps
 
-      - name: Build APK
+      - name: Build APK localement
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive
+        run: eas build --platform android --profile preview --non-interactive --local --output /tmp/makit-plus.apk
 
-      - name: Lien de telechargement
-        run: echo "APK disponible sur https://expo.dev/accounts/makitpluss-organization/projects/mobile/builds"
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Makit-Plus-APK
+          path: /tmp/makit-plus.apk
+          retention-days: 30
 
