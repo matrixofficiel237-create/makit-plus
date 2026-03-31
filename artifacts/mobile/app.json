@@ -14,18 +14,9 @@
       "backgroundColor": "#4CAF50"
     },
     "ios": {
-      "supportsTablet": false,
-      "infoPlist": {
-        "NSUserNotificationsUsageDescription": "Makit+ vous envoie des notifications pour le suivi de vos commandes."
-      }
+      "supportsTablet": false
     },
-    "android": {
-      "permissions": [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
-      ]
-    },
+    "android": {},
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -37,16 +28,7 @@
         }
       ],
       "expo-font",
-      "expo-web-browser",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#4CAF50",
-          "sounds": [],
-          "mode": "production"
-        }
-      ]
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
