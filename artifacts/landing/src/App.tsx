@@ -5,24 +5,16 @@ import appShowcase from "./assets/app-showcase.png";
 import promoLivreur from "./assets/promo-livreur.png";
 import promoFamily from "./assets/promo-family.png";
 
-const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/releases/latest/download/Makit-Plus.apk";
+const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/releases/download/latest/Makit-Plus.apk";
 
-async function downloadApk() {
-  try {
-    const response = await fetch(APK_LINK);
-    if (!response.ok) throw new Error("Fichier non disponible");
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "Makit-Plus.apk";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch {
-    window.open(APK_LINK, "_self");
-  }
+function downloadApk() {
+  const a = document.createElement("a");
+  a.href = APK_LINK;
+  a.download = "Makit-Plus.apk";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 const GREEN = "#4CAF50";
