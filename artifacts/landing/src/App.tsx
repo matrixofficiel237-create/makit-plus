@@ -8,7 +8,7 @@ import promoFamily from "./assets/promo-family.png";
 const APK_DOWNLOAD_URL = "https://market-fresh-delivery--makit4079.replit.app/api/download-apk";
 
 function downloadApk() {
-  window.location.href = APK_DOWNLOAD_URL;
+  window.open(APK_DOWNLOAD_URL, "_blank", "noopener");
 }
 
 const GREEN = "#4CAF50";
