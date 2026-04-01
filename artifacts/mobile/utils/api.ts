@@ -1,11 +1,15 @@
-const domain = process.env.EXPO_PUBLIC_DOMAIN;
-export const API_BASE = domain ? `https://${domain}/api` : "http://localhost:8080/api";
+export const API_BASE = "https://b5ae9009-5382-4415-83cb-c2b7a03bd932-00-35lyxzzp1wkqy.worf.replit.dev/api";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch {
+    throw new Error("Impossible de se connecter au serveur. Vérifiez votre connexion internet.");
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Erreur serveur");
   return data as T;
