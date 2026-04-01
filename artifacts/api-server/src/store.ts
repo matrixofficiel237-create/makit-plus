@@ -160,3 +160,11 @@ export function updateOrder(id: string, patch: Partial<StoredOrder>): StoredOrde
   saveStore();
   return store.orders[idx];
 }
+
+export function deleteOrder(id: string): boolean {
+  const idx = store.orders.findIndex((o) => o.id === id);
+  if (idx === -1) return false;
+  store.orders.splice(idx, 1);
+  saveStore();
+  return true;
+}

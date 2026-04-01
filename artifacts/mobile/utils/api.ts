@@ -45,6 +45,8 @@ export const api = {
       apiFetch<{ order: any }>("/orders", { method: "POST", body: JSON.stringify(order) }),
     update: (id: string, patch: any) =>
       apiFetch<{ order: any }>(`/orders/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+    delete: (id: string) =>
+      apiFetch<{ success: boolean }>(`/orders/${id}`, { method: "DELETE" }),
   },
   users: {
     getAll: (role?: string) =>

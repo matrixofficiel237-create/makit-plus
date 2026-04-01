@@ -56,7 +56,7 @@ export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user, logout, createManagedUser, getManagedUsers, deleteManagedUser, updateCredentials } = useAuth();
-  const { getAllOrders, assignLivreur, updateOrderStatus, refreshOrders } = useOrders();
+  const { getAllOrders, assignLivreur, updateOrderStatus, deleteOrder, refreshOrders } = useOrders();
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("orders");
@@ -65,6 +65,7 @@ export default function AdminDashboard() {
   const [pendingAssign, setPendingAssign] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<{ orderId: string; status: OrderStatus } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [pendingDeleteOrder, setPendingDeleteOrder] = useState<string | null>(null);
 
   const [managedUsers, setManagedUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<User[]>([]);
@@ -152,6 +153,13 @@ export default function AdminDashboard() {
     await deleteManagedUser(pendingDelete);
     setPendingDelete(null);
     await loadUsers();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  async function confirmDeleteOrder() {
+    if (!pendingDeleteOrder) return;
+    await deleteOrder(pendingDeleteOrder);
+    setPendingDeleteOrder(null);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
@@ -278,7 +286,9 @@ export default function AdminDashboard() {
               <>
                 <Text style={styles.sectionTitle}>✅ Livrées ({delivered.length})</Text>
                 {delivered.map((o) => (
-                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap} clientMap={clientMap} />
+                  <AdminOrderCard key={o.id} order={o} livreurMap={livreurMap} clientMap={clientMap}
+                    onDelete={() => setPendingDeleteOrder(o.id)}
+                  />
                 ))}
               </>
             )}
@@ -609,6 +619,11 @@ export default function AdminDashboard() {
         message="Cette action est irréversible."
         confirmLabel="Supprimer" cancelLabel="Annuler" danger
         onConfirm={confirmDelete} onCancel={() => setPendingDelete(null)} />
+      <ConfirmModal visible={!!pendingDeleteOrder}
+        title="Supprimer la commande"
+        message="Confirmer la suppression de cette commande ? Cette action est irréversible."
+        confirmLabel="Supprimer" cancelLabel="Annuler" danger
+        onConfirm={confirmDeleteOrder} onCancel={() => setPendingDeleteOrder(null)} />
     </View>
   );
 }
@@ -661,10 +676,11 @@ const STATUS_LABEL: Partial<Record<OrderStatus, string>> = {
   en_attente: "Commencer l'achat", achat_en_cours: "En route", en_livraison: "Marquer livré",
 };
 
-function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus, onAssign }: {
+function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus, onAssign, onDelete }: {
   order: Order; livreurMap?: Record<string, User>; clientMap?: Record<string, User>;
   onUpdateStatus?: (id: string, s: OrderStatus) => void;
   onAssign?: () => void;
+  onDelete?: () => void;
 }) {
   const nextStatus = STATUS_NEXT[order.statut];
   const livreur = order.livreurId ? livreurMap[order.livreurId] : null;
@@ -741,6 +757,12 @@ function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus
           <TouchableOpacity style={styles.statusBtn} onPress={() => onUpdateStatus(order.id, nextStatus)}>
             <Text style={styles.statusBtnText}>{STATUS_LABEL[order.statut]}</Text>
             <Feather name="arrow-right" size={13} color={Colors.white} />
+          </TouchableOpacity>
+        )}
+        {onDelete && (
+          <TouchableOpacity style={styles.deleteOrderBtn} onPress={onDelete}>
+            <Feather name="trash-2" size={13} color={Colors.red} />
+            <Text style={styles.deleteOrderBtnText}>Supprimer</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -862,6 +884,8 @@ const styles = StyleSheet.create({
   memberBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   memberBadgeText: { fontSize: 11, fontWeight: "600", color: Colors.primaryDark, fontFamily: "Inter_600SemiBold" },
   deleteBtn: { padding: 8 },
+  deleteOrderBtn: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: Colors.red, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  deleteOrderBtnText: { color: Colors.red, fontSize: 12, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   empty: { alignItems: "center", justifyContent: "center", paddingVertical: 60, gap: 12 },
   emptyText: { fontSize: 14, color: Colors.textLight, fontFamily: "Inter_400Regular", textAlign: "center" },
 

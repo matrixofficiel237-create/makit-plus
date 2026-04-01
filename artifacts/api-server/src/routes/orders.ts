@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllOrders, getOrdersByUser, createOrder, updateOrder, StoredOrder, findUserById } from "../store";
+import { getAllOrders, getOrdersByUser, createOrder, updateOrder, deleteOrder, StoredOrder, findUserById } from "../store";
 import {
   notifyNewOrder,
   notifyOrderAssigned,
@@ -65,6 +65,16 @@ router.patch("/:id", async (req, res) => {
   }
 
   res.json({ order: updated });
+});
+
+router.delete("/:id", (req, res) => {
+  const { id } = req.params;
+  const ok = deleteOrder(id);
+  if (!ok) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+  res.json({ success: true });
 });
 
 export default router;
