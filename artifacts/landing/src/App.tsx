@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import logoImg from "./assets/logo.jpg";
+import promoDelivery from "./assets/promo-delivery.png";
+import appShowcase from "./assets/app-showcase.png";
+import promoLivreur from "./assets/promo-livreur.png";
+import promoFamily from "./assets/promo-family.png";
 
 const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/releases/latest/download/Makit-Plus.apk";
 
@@ -131,6 +135,87 @@ function Hero() {
             <span style={{ fontWeight: 500 }}>{item.label}</span>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function PromoHero() {
+  return (
+    <section style={{ padding: "0", background: "#fff", overflow: "hidden" }}>
+      <div style={{ position: "relative", width: "100%", maxHeight: 480 }}>
+        <img
+          src={promoDelivery}
+          alt="Livraison Makit+"
+          style={{ width: "100%", height: 480, objectFit: "cover", display: "block" }}
+        />
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(to right, rgba(56,142,60,0.7) 0%, rgba(0,0,0,0.1) 100%)",
+          display: "flex", alignItems: "center", padding: "0 48px",
+        }}>
+          <div style={{ color: "white", maxWidth: 500 }}>
+            <p style={{
+              fontSize: 13, fontWeight: 700, letterSpacing: 2,
+              color: "#A5D6A7", marginBottom: 12, textTransform: "uppercase",
+            }}>Service de livraison à domicile</p>
+            <h2 style={{
+              fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 900,
+              lineHeight: 1.15, marginBottom: 20, letterSpacing: -1,
+            }}>
+              Vos courses livrées<br />directement chez vous
+            </h2>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", marginBottom: 28, lineHeight: 1.7 }}>
+              Plus besoin de se déplacer au marché. Commandez depuis votre téléphone et recevez vos achats à Yaoundé.
+            </p>
+            <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "13px 24px", borderRadius: 12,
+              background: GREEN, color: "white",
+              fontWeight: 700, fontSize: 15, textDecoration: "none",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+            }}>
+              ⬇️ Télécharger l'app
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PhotoGallery() {
+  return (
+    <section style={{ padding: "72px 24px", background: "#fafafa" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <span style={{
+            display: "inline-block", padding: "6px 16px", borderRadius: 20,
+            background: GREEN_LIGHT, color: GREEN_DARK,
+            fontSize: 13, fontWeight: 700, marginBottom: 12, letterSpacing: 1,
+          }}>NOTRE SERVICE</span>
+          <h2 style={{ fontSize: "clamp(26px, 4vw, 40px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: -1 }}>
+            Rapide, fiable, proche de vous
+          </h2>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+            <img src={promoLivreur} alt="Livreur Makit+" style={{ width: "100%", height: 280, objectFit: "cover", display: "block" }} />
+            <div style={{ background: "white", padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>🚚 Livraison rapide</h3>
+              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>Nos livreurs expérimentés récupèrent et livrent vos courses rapidement dans toute la ville.</p>
+            </div>
+          </div>
+
+          <div style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+            <img src={promoFamily} alt="Famille Makit+" style={{ width: "100%", height: 280, objectFit: "cover", display: "block" }} />
+            <div style={{ background: "white", padding: "20px 24px" }}>
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>🏠 À votre porte</h3>
+              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>Recevez vos produits frais directement chez vous, sans vous déplacer.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -281,48 +366,58 @@ function Stats() {
 
 function Download() {
   return (
-    <section id="telechargement" style={{ padding: "80px 24px", background: "#fafafa" }}>
+    <section id="telechargement" style={{ padding: "80px 24px", background: "white" }}>
       <div style={{
-        maxWidth: 640, margin: "0 auto", textAlign: "center",
-        background: "white", borderRadius: 28,
-        padding: "56px 40px",
-        boxShadow: "0 4px 40px rgba(0,0,0,0.08)",
-        border: "1px solid #f0f0f0",
+        maxWidth: 1000, margin: "0 auto",
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48,
+        alignItems: "center",
       }}>
-        <div style={{ fontSize: 60, marginBottom: 20 }}>📱</div>
-        <h2 style={{ fontSize: 32, fontWeight: 800, color: "#1a1a1a", marginBottom: 12, letterSpacing: -1 }}>
-          Téléchargez Makit+
-        </h2>
-        <p style={{ fontSize: 15, color: "#666", marginBottom: 8 }}>
-          Application Android — Compatible avec tous les appareils Android 6.0 et plus
-        </p>
-        <p style={{ fontSize: 13, color: "#999", marginBottom: 32 }}>
-          Gratuit · Sans publicité · Aucun abonnement requis
-        </p>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <img
+            src={appShowcase}
+            alt="Application Makit+"
+            style={{ width: "100%", maxWidth: 320, borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
+          />
+        </div>
 
-        <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
-          display: "inline-flex", alignItems: "center", gap: 12,
-          padding: "16px 36px", borderRadius: 16,
-          background: GREEN, color: "white",
-          fontWeight: 800, fontSize: 17, textDecoration: "none",
-          boxShadow: `0 6px 24px ${GREEN}55`,
-          transition: "transform 0.2s",
-        }}>
-          <span style={{ fontSize: 24 }}>⬇️</span>
-          Télécharger l'APK Android
-        </a>
+        <div>
+          <span style={{
+            display: "inline-block", padding: "6px 16px", borderRadius: 20,
+            background: GREEN_LIGHT, color: GREEN_DARK,
+            fontSize: 13, fontWeight: 700, marginBottom: 16, letterSpacing: 1,
+          }}>TÉLÉCHARGEMENT GRATUIT</span>
 
-        <p style={{ fontSize: 12, color: "#aaa", marginTop: 20 }}>
-          Le téléchargement démarrera automatiquement · Android 6.0 et supérieur
-        </p>
+          <h2 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, color: "#1a1a1a", marginBottom: 16, letterSpacing: -1 }}>
+            Téléchargez<br />Makit+ maintenant
+          </h2>
+          <p style={{ fontSize: 15, color: "#666", marginBottom: 8, lineHeight: 1.7 }}>
+            Application Android — Compatible avec tous les appareils Android 6.0 et plus.
+          </p>
+          <p style={{ fontSize: 14, color: "#999", marginBottom: 28 }}>
+            Gratuit · Sans publicité · Aucun abonnement requis
+          </p>
 
-        <div style={{
-          display: "flex", gap: 20, marginTop: 32, justifyContent: "center",
-          flexWrap: "wrap",
-        }}>
-          {["✅ Gratuit", "✅ Sans inscription préalable", "✅ Paiement à la livraison"].map(tag => (
-            <span key={tag} style={{ fontSize: 13, color: GREEN_DARK, fontWeight: 600 }}>{tag}</span>
-          ))}
+          <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
+            display: "inline-flex", alignItems: "center", gap: 12,
+            padding: "16px 32px", borderRadius: 16,
+            background: GREEN, color: "white",
+            fontWeight: 800, fontSize: 17, textDecoration: "none",
+            boxShadow: `0 6px 24px ${GREEN}55`,
+            marginBottom: 16,
+          }}>
+            <span style={{ fontSize: 22 }}>⬇️</span>
+            Télécharger l'APK Android
+          </a>
+
+          <p style={{ fontSize: 12, color: "#aaa", marginBottom: 24 }}>
+            Le téléchargement démarrera automatiquement · Android 6.0+
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {["✅ Gratuit et sans frais cachés", "✅ Paiement uniquement à la livraison", "✅ Disponible sur tout Android"].map(tag => (
+              <span key={tag} style={{ fontSize: 14, color: GREEN_DARK, fontWeight: 600 }}>{tag}</span>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -356,6 +451,8 @@ export default function App() {
     <div>
       <Navbar />
       <Hero />
+      <PromoHero />
+      <PhotoGallery />
       <HowItWorks />
       <Features />
       <Stats />
