@@ -13,34 +13,87 @@ jobs:
   build:
     name: Build APK Makit+
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
+      - name: Install Expo CLI
+        run: npm install -g @expo/cli
 
       - name: Install mobile dependencies
         working-directory: artifacts/mobile
         run: npm install --legacy-peer-deps
 
-      - name: Build APK
+      - name: Expo Prebuild (générer le projet Android natif)
         working-directory: artifacts/mobile
+        run: npx expo prebuild --platform android --no-install --clean
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive
 
-      - name: Lien de téléchargement
+      - name: Rendre Gradle exécutable
+        working-directory: artifacts/mobile/android
+        run: chmod +x gradlew
+
+      - name: Build APK Release
+        working-directory: artifacts/mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
+
+      - name: Trouver l'APK généré
+        id: find_apk
         run: |
-          echo "✅ Build terminé !"
-          echo "📱 APK disponible sur : https://expo.dev/accounts/makitpluss-organization/projects/mobile/builds"
+          APK_PATH=$(find artifacts/mobile/android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "APK trouvé : $APK_PATH"
+          cp "$APK_PATH" Makit-Plus.apk
+
+      - name: Supprimer la release "latest" existante (si elle existe)
+        run: |
+          gh release delete latest --yes 2>/dev/null || true
+          git push origin :refs/tags/latest 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Créer une Release GitHub avec l'APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Makit+ — Dernière version"
+          body: |
+            ## 📱 Makit+ — Application Android
+
+            Téléchargez et installez l'APK directement sur votre téléphone Android.
+
+            **Instructions :**
+            1. Téléchargez le fichier `Makit-Plus.apk` ci-dessous
+            2. Sur votre téléphone, autorisez l'installation depuis des sources inconnues
+            3. Ouvrez le fichier téléchargé et installez l'application
+
+            ---
+            *Build automatique — ${{ github.sha }}*
+          files: Makit-Plus.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Résumé
+        run: |
+          echo "✅ APK publié avec succès !"
+          echo "📥 Lien de téléchargement direct :"
+          echo "https://github.com/matrixofficiel237-create/makit-plus/releases/latest/download/Makit-Plus.apk"

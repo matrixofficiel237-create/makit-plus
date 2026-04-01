@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/actions";
+const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/releases/latest/download/Makit-Plus.apk";
 
 const GREEN = "#4CAF50";
 const GREEN_DARK = "#388E3C";
@@ -319,7 +319,7 @@ function Download() {
         </a>
 
         <p style={{ fontSize: 12, color: "#aaa", marginTop: 20 }}>
-          Ouvrez le lien, cliquez sur le dernier build → "Makit-Plus-APK"
+          Le téléchargement démarrera automatiquement · Android 6.0 et supérieur
         </p>
 
         <div style={{
