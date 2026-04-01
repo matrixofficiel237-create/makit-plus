@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import logoImg from "./assets/logo.jpg";
 
 const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/releases/latest/download/Makit-Plus.apk";
 
@@ -25,11 +26,7 @@ function Navbar() {
       display: "flex", alignItems: "center", justifyContent: "space-between",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: 10,
-          background: GREEN, display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 20, fontWeight: 800, color: "white", letterSpacing: -1,
-        }}>M+</div>
+        <img src={logoImg} alt="Makit+" style={{ width: 38, height: 38, borderRadius: 10, objectFit: "cover" }} />
         <span style={{ fontSize: 20, fontWeight: 700, color: scrolled ? "#1a1a1a" : "white" }}>Makit+</span>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
@@ -73,14 +70,11 @@ function Hero() {
         background: "rgba(255,255,255,0.05)",
       }} />
 
-      <div style={{
-        width: 90, height: 90, borderRadius: 24,
-        background: "white", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        fontSize: 42, fontWeight: 900, color: GREEN,
-        marginBottom: 24, boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
-        letterSpacing: -2,
-      }}>M+</div>
+      <img src={logoImg} alt="Makit+" style={{
+        width: 110, height: 110, borderRadius: 28,
+        objectFit: "cover",
+        marginBottom: 24, boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+      }} />
 
       <h1 style={{
         fontSize: "clamp(40px, 7vw, 72px)", fontWeight: 900,
@@ -343,11 +337,7 @@ function Footer() {
     }}>
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: GREEN, display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, fontWeight: 900, color: "white",
-          }}>M+</div>
+          <img src={logoImg} alt="Makit+" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} />
           <span style={{ fontSize: 18, fontWeight: 700, color: "white" }}>Makit+</span>
         </div>
         <p style={{ fontSize: 14, marginBottom: 8 }}>
