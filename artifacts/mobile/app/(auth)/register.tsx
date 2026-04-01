@@ -48,20 +48,21 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     setError("");
-    const user = await register({
-      nom: form.nom,
-      prenom: form.prenom,
-      telephone: form.telephone,
-      adresse: form.adresse,
-      motDePasse: form.motDePasse,
-    });
-    setLoading(false);
-    if (user) {
+    try {
+      await register({
+        nom: form.nom,
+        prenom: form.prenom,
+        telephone: form.telephone,
+        adresse: form.adresse,
+        motDePasse: form.motDePasse,
+      });
+      setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/home");
-    } else {
+    } catch (e: any) {
+      setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError("Ce numéro de téléphone est déjà utilisé");
+      setError(e.message || "Erreur lors de la création du compte");
     }
   }
 
