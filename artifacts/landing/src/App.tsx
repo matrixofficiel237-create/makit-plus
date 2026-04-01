@@ -192,25 +192,25 @@ function HowItWorks() {
 function Features() {
   const features = [
     {
-      icon: "👤",
-      title: "Pour les clients",
+      icon: "🛒",
+      title: "Faites vos courses",
       color: GREEN,
       bg: GREEN_LIGHT,
-      items: ["Créer une liste de courses personnalisée", "Suivre le statut de sa commande en temps réel", "Payer à la livraison ou via Mobile Money", "Consulter l'historique de ses commandes"],
+      items: ["Créez votre liste de courses en quelques clics", "Ajoutez tous vos articles au panier facilement", "Modifiez votre commande avant validation", "Consultez l'historique de vos commandes"],
     },
     {
-      icon: "🚚",
-      title: "Pour les livreurs",
-      color: "#FF8F00",
-      bg: "#FFF8E1",
-      items: ["Tableau de bord dédié pour gérer les livraisons", "Voir les infos complètes du client", "Suivre ses gains (400 FCFA par livraison)", "Mettre à jour le statut des commandes"],
+      icon: "📍",
+      title: "Livraison chez vous",
+      color: "#E65100",
+      bg: "#FBE9E7",
+      items: ["Indiquez votre adresse de livraison", "Choisissez votre heure de livraison préférée", "Suivez le statut de votre commande en temps réel", "Recevez vos courses à votre porte"],
     },
     {
-      icon: "🛡️",
-      title: "Pour les administrateurs",
+      icon: "💳",
+      title: "Paiement simple",
       color: "#1565C0",
       bg: "#E3F2FD",
-      items: ["Tableau de bord complet de gestion", "Gérer l'équipe (livreurs, sous-admins)", "Consulter les recettes journalières", "Gérer les clients et les commandes"],
+      items: ["Payez directement à la livraison", "Aucune avance requise", "Service fiable et sécurisé", "Disponible dans toute la ville de Yaoundé"],
     },
   ];
 
@@ -260,27 +260,24 @@ function Features() {
 
 function Stats() {
   const items = [
-    { value: "750", unit: "FCFA", label: "Frais de livraison", icon: "🚚" },
-    { value: "400", unit: "FCFA", label: "Gain par livraison (livreur)", icon: "💰" },
-    { value: "24h", unit: "/7", label: "Service disponible", icon: "⏰" },
-    { value: "100%", unit: "", label: "Android compatible", icon: "📱" },
+    { icon: "⏰", label: "Disponible 24h/7" },
+    { icon: "📱", label: "Application Android" },
+    { icon: "🔒", label: "Paiement à la livraison" },
+    { icon: "🏠", label: "Livraison à domicile" },
   ];
   return (
     <section style={{
-      padding: "64px 24px",
+      padding: "56px 24px",
       background: `linear-gradient(135deg, ${GREEN_DARK}, ${GREEN})`,
     }}>
       <div style={{
-        maxWidth: 900, margin: "0 auto",
-        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 24,
+        maxWidth: 860, margin: "0 auto",
+        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 24,
       }}>
         {items.map((s) => (
           <div key={s.label} style={{ textAlign: "center", color: "white" }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>{s.icon}</div>
-            <div style={{ fontSize: 36, fontWeight: 900, lineHeight: 1 }}>
-              {s.value}<span style={{ fontSize: 20 }}>{s.unit}</span>
-            </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 8 }}>{s.label}</div>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>{s.icon}</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{s.label}</div>
           </div>
         ))}
       </div>
