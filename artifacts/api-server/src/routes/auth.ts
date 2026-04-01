@@ -3,13 +3,13 @@ import { findUserByPhone, findUserById, createUser, updateUser } from "../store"
 
 const router = Router();
 
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   const { telephone, motDePasse } = req.body as { telephone: string; motDePasse: string };
   if (!telephone || !motDePasse) {
     res.status(400).json({ error: "telephone and motDePasse required" });
     return;
   }
-  const user = findUserByPhone(telephone);
+  const user = await findUserByPhone(telephone);
   if (!user || user.motDePasse !== motDePasse) {
     res.status(401).json({ error: "Numéro ou mot de passe incorrect" });
     return;
@@ -18,7 +18,7 @@ router.post("/login", (req, res) => {
   res.json({ user: safe });
 });
 
-router.post("/register", (req, res) => {
+router.post("/register", async (req, res) => {
   const { nom, prenom, telephone, adresse, motDePasse } = req.body as {
     nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string;
   };
@@ -26,12 +26,12 @@ router.post("/register", (req, res) => {
     res.status(400).json({ error: "Missing required fields" });
     return;
   }
-  const existing = findUserByPhone(telephone);
+  const existing = await findUserByPhone(telephone);
   if (existing) {
     res.status(409).json({ error: "Ce numéro est déjà utilisé" });
     return;
   }
-  const newUser = createUser({
+  const newUser = await createUser({
     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     nom, prenom, telephone,
     adresse: adresse || "",
@@ -42,8 +42,7 @@ router.post("/register", (req, res) => {
   res.status(201).json({ user: safe });
 });
 
-// Reset password: verify phone exists, then update password
-router.post("/reset-password", (req, res) => {
+router.post("/reset-password", async (req, res) => {
   const { telephone, newPassword } = req.body as { telephone: string; newPassword: string };
   if (!telephone || !newPassword) {
     res.status(400).json({ error: "telephone and newPassword required" });
@@ -53,17 +52,16 @@ router.post("/reset-password", (req, res) => {
     res.status(400).json({ error: "Le mot de passe doit contenir au moins 4 caractères" });
     return;
   }
-  const user = findUserByPhone(telephone);
+  const user = await findUserByPhone(telephone);
   if (!user) {
     res.status(404).json({ error: "Aucun compte associé à ce numéro" });
     return;
   }
-  updateUser(user.id, { motDePasse: newPassword });
+  await updateUser(user.id, { motDePasse: newPassword });
   res.json({ success: true });
 });
 
-// Update own credentials (phone/password), requires current password verification
-router.patch("/update-credentials", (req, res) => {
+router.patch("/update-credentials", async (req, res) => {
   const { userId, currentPassword, newTelephone, newPassword } = req.body as {
     userId: string; currentPassword: string; newTelephone?: string; newPassword?: string;
   };
@@ -71,7 +69,7 @@ router.patch("/update-credentials", (req, res) => {
     res.status(400).json({ error: "userId and currentPassword required" });
     return;
   }
-  const user = findUserById(userId);
+  const user = await findUserById(userId);
   if (!user) {
     res.status(404).json({ error: "Utilisateur introuvable" });
     return;
@@ -81,7 +79,7 @@ router.patch("/update-credentials", (req, res) => {
     return;
   }
   if (newTelephone && newTelephone !== user.telephone) {
-    const existing = findUserByPhone(newTelephone);
+    const existing = await findUserByPhone(newTelephone);
     if (existing) {
       res.status(409).json({ error: "Ce numéro est déjà utilisé par un autre compte" });
       return;
@@ -96,7 +94,7 @@ router.patch("/update-credentials", (req, res) => {
     }
     patch.motDePasse = newPassword;
   }
-  const updated = updateUser(userId, patch);
+  const updated = await updateUser(userId, patch);
   if (!updated) {
     res.status(404).json({ error: "Utilisateur introuvable" });
     return;

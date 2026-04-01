@@ -1,170 +1,110 @@
-import fs from "fs";
-import path from "path";
+import { db, usersTable, ordersTable } from "@workspace/db";
+import { eq, desc, inArray } from "drizzle-orm";
 
-const DATA_FILE = path.join(process.cwd(), "makit_data.json");
+export type StoredUser = typeof usersTable.$inferSelect;
+export type StoredOrder = typeof ordersTable.$inferSelect;
 
-export interface StoredUser {
-  id: string;
-  nom: string;
-  prenom: string;
-  telephone: string;
-  adresse: string;
-  motDePasse: string;
-  role: "client" | "livreur" | "admin" | "sous_admin";
-  pushToken?: string;
+const DEFAULT_USERS: (typeof usersTable.$inferInsert)[] = [
+  {
+    id: "livreur-1",
+    nom: "Makit+",
+    prenom: "Livreur",
+    telephone: "0000000000",
+    adresse: "Makit+ HQ",
+    motDePasse: "livreur123",
+    role: "livreur",
+  },
+  {
+    id: "admin-1",
+    nom: "Makit+",
+    prenom: "Admin",
+    telephone: "admin",
+    adresse: "Makit+ HQ",
+    motDePasse: "admin123",
+    role: "admin",
+  },
+];
+
+export async function seedDefaultUsers() {
+  for (const user of DEFAULT_USERS) {
+    await db
+      .insert(usersTable)
+      .values(user)
+      .onConflictDoNothing();
+  }
 }
-
-export interface StoredOrder {
-  id: string;
-  userId: string;
-  items: any[];
-  adresse: { quartier: string; rue: string; description: string };
-  paiement: "livraison" | "mobile_money";
-  statut: "en_attente" | "achat_en_cours" | "en_livraison" | "livre";
-  totalProduits: number;
-  fraisLivraison: number;
-  totalFinal: number;
-  date: string;
-  livreurId?: string;
-  confirmeRecu?: boolean;
-}
-
-interface Store {
-  users: StoredUser[];
-  orders: StoredOrder[];
-}
-
-let store: Store = {
-  users: [
-    {
-      id: "livreur-1",
-      nom: "Makit+",
-      prenom: "Livreur",
-      telephone: "0000000000",
-      adresse: "Makit+ HQ",
-      motDePasse: "livreur123",
-      role: "livreur",
-    },
-    {
-      id: "admin-1",
-      nom: "Makit+",
-      prenom: "Admin",
-      telephone: "admin",
-      adresse: "Makit+ HQ",
-      motDePasse: "admin123",
-      role: "admin",
-    },
-  ],
-  orders: [],
-};
-
-function loadStore() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf8");
-      const parsed = JSON.parse(raw) as Store;
-      // Merge: keep default users if not in file
-      const defaultIds = new Set(store.users.map((u) => u.id));
-      const fileIds = new Set(parsed.users.map((u: StoredUser) => u.id));
-      for (const u of store.users) {
-        if (!fileIds.has(u.id)) parsed.users.push(u);
-      }
-      store = parsed;
-    }
-  } catch {}
-}
-
-function saveStore() {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
-  } catch {}
-}
-
-loadStore();
 
 // ── Users ──
-export function getAllUsers(): StoredUser[] {
-  return store.users;
+export async function getAllUsers(): Promise<StoredUser[]> {
+  return db.select().from(usersTable);
 }
 
-export function findUserByPhone(telephone: string): StoredUser | undefined {
-  return store.users.find((u) => u.telephone === telephone);
+export async function findUserByPhone(telephone: string): Promise<StoredUser | undefined> {
+  const rows = await db.select().from(usersTable).where(eq(usersTable.telephone, telephone)).limit(1);
+  return rows[0];
 }
 
-export function findUserById(id: string): StoredUser | undefined {
-  return store.users.find((u) => u.id === id);
+export async function findUserById(id: string): Promise<StoredUser | undefined> {
+  const rows = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  return rows[0];
 }
 
-export function createUser(user: StoredUser): StoredUser {
-  store.users.push(user);
-  saveStore();
-  return user;
+export async function createUser(user: typeof usersTable.$inferInsert): Promise<StoredUser> {
+  const rows = await db.insert(usersTable).values(user).returning();
+  return rows[0];
 }
 
-export function deleteUser(id: string): boolean {
-  const idx = store.users.findIndex((u) => u.id === id);
-  if (idx === -1) return false;
-  store.users.splice(idx, 1);
-  saveStore();
-  return true;
+export async function deleteUser(id: string): Promise<boolean> {
+  const rows = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
+  return rows.length > 0;
 }
 
-export function updateUser(id: string, patch: Partial<Omit<StoredUser, "id" | "role">>): StoredUser | null {
-  const idx = store.users.findIndex((u) => u.id === id);
-  if (idx === -1) return null;
-  store.users[idx] = { ...store.users[idx], ...patch };
-  saveStore();
-  return store.users[idx];
+export async function updateUser(
+  id: string,
+  patch: Partial<Omit<typeof usersTable.$inferInsert, "id" | "role">>
+): Promise<StoredUser | null> {
+  const rows = await db.update(usersTable).set(patch).where(eq(usersTable.id, id)).returning();
+  return rows[0] ?? null;
 }
 
-export function savePushToken(userId: string, token: string): boolean {
-  const idx = store.users.findIndex((u) => u.id === userId);
-  if (idx === -1) return false;
-  store.users[idx].pushToken = token;
-  saveStore();
-  return true;
+export async function savePushToken(userId: string, token: string): Promise<boolean> {
+  const rows = await db
+    .update(usersTable)
+    .set({ pushToken: token })
+    .where(eq(usersTable.id, userId))
+    .returning();
+  return rows.length > 0;
 }
 
-export function getUserPushToken(userId: string): string | null {
-  const user = store.users.find((u) => u.id === userId);
-  return user?.pushToken || null;
+export async function getUserPushToken(userId: string): Promise<string | null> {
+  const rows = await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  return rows[0]?.pushToken ?? null;
 }
 
-export function getAllUsersByRole(role: string): StoredUser[] {
-  return store.users.filter((u) => u.role === role);
+export async function getAllUsersByRole(role: string): Promise<StoredUser[]> {
+  return db.select().from(usersTable).where(eq(usersTable.role, role));
 }
 
 // ── Orders ──
-export function getAllOrders(): StoredOrder[] {
-  return [...store.orders].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+export async function getAllOrders(): Promise<StoredOrder[]> {
+  return db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
 }
 
-export function getOrdersByUser(userId: string): StoredOrder[] {
-  return store.orders
-    .filter((o) => o.userId === userId)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export async function getOrdersByUser(userId: string): Promise<StoredOrder[]> {
+  return db.select().from(ordersTable).where(eq(ordersTable.userId, userId)).orderBy(desc(ordersTable.createdAt));
 }
 
-export function createOrder(order: StoredOrder): StoredOrder {
-  store.orders.push(order);
-  saveStore();
-  return order;
+export async function createOrder(order: typeof ordersTable.$inferInsert): Promise<StoredOrder> {
+  const rows = await db.insert(ordersTable).values(order).returning();
+  return rows[0];
 }
 
-export function updateOrder(id: string, patch: Partial<StoredOrder>): StoredOrder | null {
-  const idx = store.orders.findIndex((o) => o.id === id);
-  if (idx === -1) return null;
-  store.orders[idx] = { ...store.orders[idx], ...patch };
-  saveStore();
-  return store.orders[idx];
+export async function updateOrder(id: string, patch: Partial<typeof ordersTable.$inferInsert>): Promise<StoredOrder | null> {
+  const rows = await db.update(ordersTable).set(patch).where(eq(ordersTable.id, id)).returning();
+  return rows[0] ?? null;
 }
 
-export function deleteOrder(id: string): boolean {
-  const idx = store.orders.findIndex((o) => o.id === id);
-  if (idx === -1) return false;
-  store.orders.splice(idx, 1);
-  saveStore();
-  return true;
+export async function deleteOrder(id: string): Promise<boolean> {
+  const rows = await db.delete(ordersTable).where(eq(ordersTable.id, id)).returning();
+  return rows.length > 0;
 }

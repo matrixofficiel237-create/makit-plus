@@ -33,13 +33,13 @@ async function sendToToken(token: string, payload: NotifPayload) {
 }
 
 async function sendToUser(userId: string, payload: NotifPayload) {
-  const token = getUserPushToken(userId);
+  const token = await getUserPushToken(userId);
   if (!token) return;
   await sendToToken(token, payload);
 }
 
 async function sendToRole(role: string, payload: NotifPayload) {
-  const users = getAllUsersByRole(role);
+  const users = await getAllUsersByRole(role);
   for (const user of users) {
     if (user.pushToken) {
       await sendToToken(user.pushToken, payload);
@@ -47,11 +47,8 @@ async function sendToRole(role: string, payload: NotifPayload) {
   }
 }
 
-// ── Notifications par événement ──────────────────────────
-
 export async function notifyNewOrder(orderId: string, clientName: string) {
   const shortId = orderId.slice(-6).toUpperCase();
-  // Notifier admin et sous_admin
   await sendToRole("admin", {
     title: "📦 Nouvelle commande",
     body: `Commande #${shortId} de ${clientName} vient d'arriver`,
