@@ -46,11 +46,18 @@ jobs:
         working-directory: artifacts/mobile/android
         run: ./gradlew assembleRelease --no-daemon
 
+      - name: Trouver l APK genere
+        run: |
+          echo "=== Fichiers APK trouves ==="
+          find artifacts/mobile/android/app/build/outputs/apk/ -name "*.apk" 2>/dev/null
+          APK=$(find artifacts/mobile/android/app/build/outputs/apk/ -name "*.apk" | head -1)
+          echo "APK_PATH=$APK" >> $GITHUB_ENV
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Makit-Plus-APK
-          path: artifacts/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: ${{ env.APK_PATH }}
           retention-days: 30
           if-no-files-found: error
 
