@@ -27,6 +27,15 @@
       "adresse": "Soa",
       "motDePasse": "azerty",
       "role": "client"
+    },
+    {
+      "id": "1775021249190y4g43udqk",
+      "nom": "Test",
+      "prenom": "User",
+      "telephone": "0612345678",
+      "adresse": "Yaoundé",
+      "motDePasse": "test123",
+      "role": "client"
     }
   ],
   "orders": [
