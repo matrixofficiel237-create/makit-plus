@@ -30,22 +30,23 @@ export default function LoginScreen() {
     }
     setLoading(true);
     setError("");
-    const user = await login(telephone, motDePasse);
-    setLoading(false);
-    if (user) {
+    try {
+      const user = await login(telephone, motDePasse);
+      setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (user.role === "livreur") {
+      if (user!.role === "livreur") {
         router.replace("/(livreur)/orders");
-      } else if (user.role === "admin") {
+      } else if (user!.role === "admin") {
         router.replace("/(admin)/dashboard");
-      } else if (user.role === "sous_admin") {
+      } else if (user!.role === "sous_admin") {
         router.replace("/(sous_admin)/dashboard");
       } else {
         router.replace("/(tabs)/home");
       }
-    } else {
+    } catch (e: any) {
+      setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError("Numéro ou mot de passe incorrect");
+      setError(e.message || "Numéro ou mot de passe incorrect");
     }
   }
 
