@@ -8,12 +8,7 @@ import promoFamily from "./assets/promo-family.png";
 const APK_DOWNLOAD_URL = "https://market-fresh-delivery--makit4079.replit.app/api/download-apk";
 
 function downloadApk() {
-  const a = document.createElement("a");
-  a.href = APK_DOWNLOAD_URL;
-  a.download = "Makit-Plus.apk";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  window.location.href = APK_DOWNLOAD_URL;
 }
 
 const GREEN = "#4CAF50";
