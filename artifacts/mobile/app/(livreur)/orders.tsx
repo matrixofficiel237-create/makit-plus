@@ -9,6 +9,7 @@ import { router, useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders, Order, OrderStatus } from "@/context/OrderContext";
+import { api } from "@/utils/api";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
@@ -37,8 +38,9 @@ function isToday(dateStr: string) {
   return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
 }
 
-function LivreurOrderCard({ order, onUpdateStatus }: {
+function LivreurOrderCard({ order, client, onUpdateStatus }: {
   order: Order;
+  client?: { prenom: string; nom: string; telephone: string; adresse: string } | null;
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
 }) {
   const nextStatus = STATUS_NEXT[order.statut];
@@ -52,6 +54,17 @@ function LivreurOrderCard({ order, onUpdateStatus }: {
         </View>
         <OrderStatusBadge statut={order.statut} size="sm" />
       </View>
+
+      {client && (
+        <View style={styles.clientRow}>
+          <Feather name="user" size={13} color={Colors.primaryDark} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.clientName}>{client.prenom} {client.nom}</Text>
+            <Text style={styles.clientPhone}>📞 {client.telephone}</Text>
+            {client.adresse ? <Text style={styles.clientAddr}>📍 {client.adresse}</Text> : null}
+          </View>
+        </View>
+      )}
 
       <View style={styles.itemsList}>
         {order.items.map((item, i) => (
@@ -123,8 +136,16 @@ export default function LivreurOrdersScreen() {
   const [activeTab, setActiveTab] = useState<"active" | "completed" | "gains">("active");
   const [showLogout, setShowLogout] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<{ orderId: string; status: OrderStatus } | null>(null);
+  const [clientMap, setClientMap] = useState<Record<string, any>>({});
 
-  useFocusEffect(useCallback(() => { refreshOrders(); }, []));
+  useFocusEffect(useCallback(() => {
+    refreshOrders();
+    api.users.getAll("client").then(({ users }) => {
+      const map: Record<string, any> = {};
+      users.forEach((u: any) => { map[u.id] = u; });
+      setClientMap(map);
+    }).catch(() => {});
+  }, []));
 
   async function onRefresh() {
     setRefreshing(true);
@@ -283,6 +304,7 @@ export default function LivreurOrdersScreen() {
                 <LivreurOrderCard
                   key={order.id}
                   order={order}
+                  client={clientMap[order.userId] || null}
                   onUpdateStatus={(id, s) => setPendingStatus({ orderId: id, status: s })}
                 />
               ))
@@ -337,6 +359,10 @@ const styles = StyleSheet.create({
   itemTotalRow: { marginTop: 2 },
   itemTotalLabel: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
   itemTotalValue: { fontSize: 13, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  clientRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: "#E8F5E9", padding: 10, borderRadius: 10 },
+  clientName: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  clientPhone: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 2 },
+  clientAddr: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 1 },
   addressRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: Colors.primaryLighter, padding: 10, borderRadius: 10 },
   addressText: { flex: 1, fontSize: 13, color: Colors.primaryDark, fontFamily: "Inter_500Medium" },
   paymentRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
