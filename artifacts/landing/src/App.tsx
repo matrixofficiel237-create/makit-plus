@@ -7,6 +7,24 @@ import promoFamily from "./assets/promo-family.png";
 
 const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/releases/latest/download/Makit-Plus.apk";
 
+async function downloadApk() {
+  try {
+    const response = await fetch(APK_LINK);
+    if (!response.ok) throw new Error("Fichier non disponible");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Makit-Plus.apk";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch {
+    window.open(APK_LINK, "_self");
+  }
+}
+
 const GREEN = "#4CAF50";
 const GREEN_DARK = "#388E3C";
 const GREEN_LIGHT = "#E8F5E9";
@@ -39,15 +57,15 @@ function Navbar() {
           color: scrolled ? "#555" : "rgba(255,255,255,0.85)",
           textDecoration: "none", transition: "color 0.2s",
         }}>Comment ça marche</a>
-        <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
+        <button onClick={downloadApk} style={{
           padding: "8px 18px", borderRadius: 10,
           background: scrolled ? GREEN : "white",
           color: scrolled ? "white" : GREEN,
           fontSize: 14, fontWeight: 700,
-          textDecoration: "none",
+          border: "none", cursor: "pointer",
           boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           transition: "all 0.2s",
-        }}>Télécharger l'APK</a>
+        }}>Télécharger l'APK</button>
       </div>
     </nav>
   );
@@ -100,17 +118,17 @@ function Hero() {
       </p>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-        <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
+        <button onClick={downloadApk} style={{
           display: "flex", alignItems: "center", gap: 10,
           padding: "14px 28px", borderRadius: 14,
           background: "white", color: GREEN,
-          fontWeight: 800, fontSize: 16, textDecoration: "none",
+          fontWeight: 800, fontSize: 16, border: "none", cursor: "pointer",
           boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
           transition: "transform 0.2s",
         }}>
           <span style={{ fontSize: 22 }}>📱</span>
           Télécharger l'APK Android
-        </a>
+        </button>
         <a href="#fonctionnement" style={{
           display: "flex", alignItems: "center", gap: 8,
           padding: "14px 24px", borderRadius: 14,
@@ -168,15 +186,15 @@ function PromoHero() {
             <p style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", marginBottom: 28, lineHeight: 1.7 }}>
               Plus besoin de se déplacer au marché. Commandez depuis votre téléphone et recevez vos achats à domicile.
             </p>
-            <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
+            <button onClick={downloadApk} style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "13px 24px", borderRadius: 12,
               background: GREEN, color: "white",
-              fontWeight: 700, fontSize: 15, textDecoration: "none",
+              fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer",
               boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
             }}>
               ⬇️ Télécharger l'app
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -397,17 +415,17 @@ function Download() {
             Gratuit · Sans publicité · Aucun abonnement requis
           </p>
 
-          <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
+          <button onClick={downloadApk} style={{
             display: "inline-flex", alignItems: "center", gap: 12,
             padding: "16px 32px", borderRadius: 16,
             background: GREEN, color: "white",
-            fontWeight: 800, fontSize: 17, textDecoration: "none",
+            fontWeight: 800, fontSize: 17, border: "none", cursor: "pointer",
             boxShadow: `0 6px 24px ${GREEN}55`,
             marginBottom: 16,
           }}>
             <span style={{ fontSize: 22 }}>⬇️</span>
             Télécharger l'APK Android
-          </a>
+          </button>
 
           <p style={{ fontSize: 12, color: "#aaa", marginBottom: 24 }}>
             Le téléchargement démarrera automatiquement · Android 6.0+
