@@ -5,13 +5,12 @@ import appShowcase from "./assets/app-showcase.png";
 import promoLivreur from "./assets/promo-livreur.png";
 import promoFamily from "./assets/promo-family.png";
 
-const APK_LINK = "https://github.com/matrixofficiel237-create/makit-plus/releases/download/latest/Makit-Plus.apk";
+const APK_DOWNLOAD_URL = "https://market-fresh-delivery--makit4079.replit.app/api/download-apk";
 
 function downloadApk() {
   const a = document.createElement("a");
-  a.href = APK_LINK;
+  a.href = APK_DOWNLOAD_URL;
   a.download = "Makit-Plus.apk";
-  a.rel = "noopener noreferrer";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
