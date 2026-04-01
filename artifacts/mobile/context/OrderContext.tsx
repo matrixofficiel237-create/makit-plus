@@ -24,6 +24,7 @@ interface OrderContextType {
   createOrder: (order: Omit<Order, "id" | "date" | "statut">) => Promise<Order>;
   updateOrderStatus: (orderId: string, statut: OrderStatus) => Promise<void>;
   confirmReception: (orderId: string) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
   getOrdersByUser: (userId: string) => Order[];
   getAllOrders: () => Order[];
   assignLivreur: (orderId: string, livreurId: string) => Promise<void>;
@@ -65,6 +66,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? order : o)));
   }
 
+  async function deleteOrder(orderId: string) {
+    await api.orders.delete(orderId);
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  }
+
   async function refreshOrders() { await loadOrders(); }
 
   function getOrdersByUser(userId: string): Order[] {
@@ -76,7 +82,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <OrderContext.Provider value={{ orders, createOrder, updateOrderStatus, confirmReception, getOrdersByUser, getAllOrders, assignLivreur, refreshOrders }}>
+    <OrderContext.Provider value={{ orders, createOrder, updateOrderStatus, confirmReception, deleteOrder, getOrdersByUser, getAllOrders, assignLivreur, refreshOrders }}>
       {children}
     </OrderContext.Provider>
   );
