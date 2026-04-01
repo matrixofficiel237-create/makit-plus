@@ -1,4 +1,4 @@
-export const API_BASE = "https://b5ae9009-5382-4415-83cb-c2b7a03bd932-00-35lyxzzp1wkqy.worf.replit.dev/api";
+export const API_BASE = "https://market-fresh-delivery--makit4079.replit.app/api";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
