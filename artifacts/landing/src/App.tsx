@@ -96,7 +96,7 @@ function Hero() {
         fontSize: 16, color: "rgba(255,255,255,0.75)",
         maxWidth: 480, marginBottom: 40,
       }}>
-        Créez votre liste de courses, passez commande et recevez vos achats directement chez vous à Yaoundé.
+        Créez votre liste de courses, passez commande et recevez vos achats directement chez vous.
       </p>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
@@ -166,7 +166,7 @@ function PromoHero() {
               Vos courses livrées<br />directement chez vous
             </h2>
             <p style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", marginBottom: 28, lineHeight: 1.7 }}>
-              Plus besoin de se déplacer au marché. Commandez depuis votre téléphone et recevez vos achats à Yaoundé.
+              Plus besoin de se déplacer au marché. Commandez depuis votre téléphone et recevez vos achats à domicile.
             </p>
             <a href={APK_LINK} target="_blank" rel="noreferrer" style={{
               display: "inline-flex", alignItems: "center", gap: 8,
@@ -204,7 +204,7 @@ function PhotoGallery() {
             <img src={promoLivreur} alt="Livreur Makit+" style={{ width: "100%", height: 280, objectFit: "cover", display: "block" }} />
             <div style={{ background: "white", padding: "20px 24px" }}>
               <h3 style={{ fontSize: 17, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>🚚 Livraison rapide</h3>
-              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>Nos livreurs expérimentés récupèrent et livrent vos courses rapidement dans toute la ville.</p>
+              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>Nos livreurs expérimentés récupèrent et livrent vos articles rapidement partout dans la ville.</p>
             </div>
           </div>
 
@@ -289,7 +289,7 @@ function Features() {
       title: "Paiement simple",
       color: "#1565C0",
       bg: "#E3F2FD",
-      items: ["Payez directement à la livraison", "Aucune avance requise", "Service fiable et sécurisé", "Disponible dans toute la ville de Yaoundé"],
+      items: ["Payez directement à la livraison", "Aucune avance requise", "Service fiable et sécurisé", "Disponible partout dans la ville"],
     },
   ];
 
@@ -436,7 +436,7 @@ function Footer() {
           <span style={{ fontSize: 18, fontWeight: 700, color: "white" }}>Makit+</span>
         </div>
         <p style={{ fontSize: 14, marginBottom: 8 }}>
-          Service de livraison de courses à domicile — Yaoundé, Cameroun
+          Service de livraison de courses à domicile
         </p>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
           © {new Date().getFullYear()} Makit+. Tous droits réservés.
