@@ -62,23 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function login(telephone: string, motDePasse: string): Promise<User | null> {
-    try {
-      const { user: u } = await api.auth.login(telephone, motDePasse);
-      await AsyncStorage.setItem("makit_user", JSON.stringify(u));
-      setUser(u);
-      registerForPushNotifications(u.id).catch(() => {});
-      return u;
-    } catch { return null; }
+    const { user: u } = await api.auth.login(telephone, motDePasse);
+    await AsyncStorage.setItem("makit_user", JSON.stringify(u));
+    setUser(u);
+    registerForPushNotifications(u.id).catch(() => {});
+    return u;
   }
 
   async function register(data: RegisterData): Promise<User | null> {
-    try {
-      const { user: u } = await api.auth.register(data);
-      await AsyncStorage.setItem("makit_user", JSON.stringify(u));
-      setUser(u);
-      registerForPushNotifications(u.id).catch(() => {});
-      return u;
-    } catch { return null; }
+    const { user: u } = await api.auth.register(data);
+    await AsyncStorage.setItem("makit_user", JSON.stringify(u));
+    setUser(u);
+    registerForPushNotifications(u.id).catch(() => {});
+    return u;
   }
 
   async function logout(): Promise<void> {
