@@ -36,6 +36,15 @@
       "adresse": "Yaoundé",
       "motDePasse": "test123",
       "role": "client"
+    },
+    {
+      "id": "17750232204712xdfb7009",
+      "nom": "Jeanne ",
+      "prenom": "Durant",
+      "telephone": "699427053",
+      "adresse": "Saa",
+      "motDePasse": "azerty",
+      "role": "client"
     }
   ],
   "orders": [
