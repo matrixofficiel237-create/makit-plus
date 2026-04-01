@@ -45,6 +45,11 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Créer symlink node_modules pour Metro bundler
+        run: |
+          ln -sf $(pwd)/artifacts/mobile/node_modules $(pwd)/node_modules
+          echo "✅ Symlink créé : $(pwd)/node_modules → $(pwd)/artifacts/mobile/node_modules"
+
       - name: Rendre Gradle exécutable
         working-directory: artifacts/mobile/android
         run: chmod +x gradlew
