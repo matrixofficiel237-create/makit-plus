@@ -35,6 +35,9 @@ jobs:
         working-directory: artifacts/mobile
         run: npm install --legacy-peer-deps
 
+      - name: Creer symlink node_modules a la racine (pour Metro)
+        run: ln -sf $(pwd)/artifacts/mobile/node_modules ./node_modules
+
       - name: Expo Prebuild (generer le projet Android)
         working-directory: artifacts/mobile
         run: npx expo prebuild --platform android --clean --no-install
