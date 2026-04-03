@@ -67,12 +67,18 @@ function LivreurOrderCard({ order, client, onUpdateStatus }: {
       )}
 
       <View style={styles.itemsList}>
-        {order.items.map((item, i) => (
-          <View key={i} style={styles.itemRow}>
-            <Text style={styles.itemName}>{item.product.emoji} {item.product.nom} <Text style={styles.itemQty}>×{item.quantite}</Text></Text>
-            <Text style={styles.itemPrice}>{(item.product.prix * item.quantite).toLocaleString()} F</Text>
-          </View>
-        ))}
+        {order.items.map((item: any, i: number) => {
+          const nom = item?.product?.nom ?? item?.nom ?? 'Article';
+          const prix = item?.product?.prix ?? item?.prix ?? 0;
+          const emoji = item?.product?.emoji ?? '🛒';
+          const quantite = item?.quantite ?? 1;
+          return (
+            <View key={i} style={styles.itemRow}>
+              <Text style={styles.itemName}>{emoji} {nom} <Text style={styles.itemQty}>×{quantite}</Text></Text>
+              <Text style={styles.itemPrice}>{(prix * quantite).toLocaleString()} F</Text>
+            </View>
+          );
+        })}
         <View style={styles.itemDivider} />
         <View style={styles.itemRow}>
           <Text style={styles.itemSubLabel}>Sous-total articles</Text>
@@ -91,8 +97,8 @@ function LivreurOrderCard({ order, client, onUpdateStatus }: {
       <View style={styles.addressRow}>
         <Feather name="map-pin" size={14} color={Colors.primary} />
         <Text style={styles.addressText}>
-          {order.adresse.quartier}, {order.adresse.rue}
-          {order.adresse.description ? ` — ${order.adresse.description}` : ""}
+          {order.adresse.quartier}{(order.adresse.rue || order.adresse.details) ? `, ${order.adresse.rue ?? order.adresse.details}` : ''}
+          {(order.adresse.description) ? ` — ${order.adresse.description}` : ""}
         </Text>
       </View>
 

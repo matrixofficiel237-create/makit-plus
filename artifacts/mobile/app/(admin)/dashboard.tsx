@@ -485,8 +485,8 @@ export default function AdminDashboard() {
                               <View style={styles.clientOrderLeft}>
                                 <Text style={styles.clientOrderId}>#{o.id.slice(-6).toUpperCase()}</Text>
                                 <Text style={styles.clientOrderDate}>{formatDate(o.date)}</Text>
-                                <Text style={styles.clientOrderAddr}>{o.adresse.quartier}, {o.adresse.rue}</Text>
-                                <Text style={styles.clientOrderItems} numberOfLines={1}>{o.items.map((i: any) => `${i.product.nom} ×${i.quantite}`).join(", ")}</Text>
+                                <Text style={styles.clientOrderAddr}>{o.adresse.quartier}{(o.adresse.rue || o.adresse.details) ? `, ${o.adresse.rue ?? o.adresse.details}` : ''}</Text>
+                                <Text style={styles.clientOrderItems} numberOfLines={1}>{o.items.map((i: any) => `${i?.product?.nom ?? i?.nom ?? 'Article'} ×${i?.quantite ?? 1}`).join(", ")}</Text>
                               </View>
                               <View style={styles.clientOrderRight}>
                                 <OrderStatusBadge statut={o.statut} size="sm" />
@@ -705,15 +705,24 @@ function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus
       )}
       <View style={styles.cardAddress}>
         <Feather name="map-pin" size={12} color={Colors.primary} />
-        <Text style={styles.cardAddressText}>{order.adresse.quartier}, {order.adresse.rue}{order.adresse.description ? ` (${order.adresse.description})` : ""}</Text>
+        <Text style={styles.cardAddressText}>
+          {order.adresse.quartier}{(order.adresse.rue || order.adresse.details) ? `, ${order.adresse.rue ?? order.adresse.details}` : ''}
+          {order.adresse.description ? ` (${order.adresse.description})` : ""}
+        </Text>
       </View>
       <View style={styles.itemsList}>
-        {order.items.map((item: any, i: number) => (
-          <View key={i} style={styles.itemRow}>
-            <Text style={styles.itemName}>{item.product.emoji} {item.product.nom} <Text style={styles.itemQty}>×{item.quantite}</Text></Text>
-            <Text style={styles.itemPrice}>{(item.product.prix * item.quantite).toLocaleString()} F</Text>
-          </View>
-        ))}
+        {order.items.map((item: any, i: number) => {
+          const nom = item?.product?.nom ?? item?.nom ?? 'Article';
+          const prix = item?.product?.prix ?? item?.prix ?? 0;
+          const emoji = item?.product?.emoji ?? '🛒';
+          const quantite = item?.quantite ?? 1;
+          return (
+            <View key={i} style={styles.itemRow}>
+              <Text style={styles.itemName}>{emoji} {nom} <Text style={styles.itemQty}>×{quantite}</Text></Text>
+              <Text style={styles.itemPrice}>{(prix * quantite).toLocaleString()} F</Text>
+            </View>
+          );
+        })}
         <View style={styles.itemDivider} />
         <View style={styles.itemRow}>
           <Text style={styles.itemSubLabel}>Sous-total articles</Text>
