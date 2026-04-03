@@ -1,4 +1,10 @@
 import { useEffect, useState } from "react";
+import { Router, Switch, Route, useLocation } from "wouter";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import NouvelleCommande from "./pages/NouvelleCommande";
+import { useAuth } from "./context/AuthContext";
 import logoImg from "./assets/logo.jpg";
 import promoDelivery from "./assets/promo-delivery.png";
 import appShowcase from "./assets/app-showcase.png";
@@ -18,6 +24,8 @@ const GREEN_MID = "#A5D6A7";
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", fn);
@@ -37,23 +45,55 @@ function Navbar() {
         <img src={logoImg} alt="Makit+" style={{ width: 38, height: 38, borderRadius: 10, objectFit: "cover" }} />
         <span style={{ fontSize: 20, fontWeight: 700, color: scrolled ? "#1a1a1a" : "white" }}>Makit+</span>
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <a href="#fonctionnement" style={{
           padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500,
           color: scrolled ? "#555" : "rgba(255,255,255,0.85)",
           textDecoration: "none", transition: "color 0.2s",
         }}>Comment ça marche</a>
-        <button onClick={downloadApk} style={{
-          padding: "8px 18px", borderRadius: 10,
-          background: scrolled ? GREEN : "white",
-          color: scrolled ? "white" : GREEN,
-          fontSize: 14, fontWeight: 700,
-          border: "none", cursor: "pointer",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          transition: "all 0.2s",
-        }}>Télécharger l'APK</button>
+        {user ? (
+          <button onClick={() => navigate("/tableau-de-bord")} style={{
+            padding: "8px 18px", borderRadius: 10,
+            background: scrolled ? GREEN : "white",
+            color: scrolled ? "white" : GREEN,
+            fontSize: 14, fontWeight: 700,
+            border: "none", cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          }}>Mon espace</button>
+        ) : (
+          <button onClick={() => navigate("/connexion")} style={{
+            padding: "8px 18px", borderRadius: 10,
+            background: scrolled ? GREEN : "white",
+            color: scrolled ? "white" : GREEN,
+            fontSize: 14, fontWeight: 700,
+            border: "none", cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            transition: "all 0.2s",
+          }}>Se connecter</button>
+        )}
       </div>
     </nav>
+  );
+}
+
+function HeroOrderButton() {
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
+  return (
+    <button
+      onClick={() => navigate(user ? "/tableau-de-bord" : "/connexion")}
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "14px 24px", borderRadius: 14,
+        border: "2px solid rgba(255,255,255,0.6)",
+        background: "rgba(255,255,255,0.12)",
+        color: "white", fontWeight: 700, fontSize: 16, cursor: "pointer",
+        backdropFilter: "blur(4px)",
+      }}
+    >
+      <span style={{ fontSize: 20 }}>🌐</span>
+      Commander en ligne
+    </button>
   );
 }
 
@@ -115,14 +155,7 @@ function Hero() {
           <span style={{ fontSize: 22 }}>📱</span>
           Télécharger l'APK Android
         </button>
-        <a href="#fonctionnement" style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "14px 24px", borderRadius: 14,
-          border: "2px solid rgba(255,255,255,0.5)",
-          color: "white", fontWeight: 600, fontSize: 16, textDecoration: "none",
-        }}>
-          En savoir plus ↓
-        </a>
+        <HeroOrderButton />
       </div>
 
       <div style={{
@@ -450,7 +483,7 @@ function Footer() {
   );
 }
 
-export default function App() {
+function LandingPage() {
   return (
     <div>
       <Navbar />
@@ -463,5 +496,20 @@ export default function App() {
       <Download />
       <Footer />
     </div>
+  );
+}
+
+export default function App() {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return (
+    <Router base={base}>
+      <Switch>
+        <Route path="/connexion" component={Login} />
+        <Route path="/inscription" component={Register} />
+        <Route path="/tableau-de-bord" component={Dashboard} />
+        <Route path="/nouvelle-commande" component={NouvelleCommande} />
+        <Route component={LandingPage} />
+      </Switch>
+    </Router>
   );
 }
