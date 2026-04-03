@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 const GREEN = "#4CAF50";
 const GREEN_DARK = "#388E3C";
 const GREEN_LIGHT = "#E8F5E9";
-const FRAIS_LIVRAISON = 500;
+const FRAIS_LIVRAISON = 750;
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
