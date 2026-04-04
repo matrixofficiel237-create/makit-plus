@@ -36,7 +36,7 @@ function OrderCard({ order, onPress }: { order: Order; onPress: () => void }) {
           <Text style={styles.orderId}>Commande #{order.id.slice(-6).toUpperCase()}</Text>
           <Text style={styles.orderDate}>{formatDate(order.date)}</Text>
         </View>
-        <Text style={styles.orderTotal}>{order.totalFinal.toLocaleString()} FCFA</Text>
+        <Text style={styles.orderTotal}>{(order.totalFinal ?? 0).toLocaleString()} FCFA</Text>
       </View>
       <View style={styles.orderCardBottom}>
         <OrderStatusBadge statut={order.statut} size="sm" />
