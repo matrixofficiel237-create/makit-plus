@@ -84,8 +84,8 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           Please reload the app to continue.
         </Text>
 
-        <View style={[styles.errorBox, { backgroundColor: theme.backgroundSecondary }]}>
-          <Text style={[styles.errorBoxText, { color: "#CC0000", fontFamily: monoFont }]} selectable>
+        <View style={[styles.errorBox, { backgroundColor: "#B00020" }]}>
+          <Text style={[styles.errorBoxText, { color: "#FFFFFF", fontFamily: monoFont }]} selectable>
             {error?.message ?? "Unknown error"}
           </Text>
         </View>
