@@ -200,13 +200,13 @@ export default function AdminDashboard() {
 
   const allOrders = getAllOrders();
   const pending = allOrders.filter((o) => o.statut === "en_attente");
-  const inProgress = allOrders.filter((o) => o.statut !== "en_attente" && o.statut !== "livre");
+  const inProgress = allOrders.filter((o) => o.statut !== "en_attente" && o.statut !== "livre" && o.statut !== "annule");
   const delivered = allOrders.filter((o) => o.statut === "livre");
 
-  const totalCourses = allOrders.reduce((s, o) => s + o.totalProduits, 0);
+  const totalCourses = allOrders.reduce((s, o) => s + (o.totalProduits ?? 0), 0);
   const totalPartLivreur = delivered.length * LIVREUR_PART;
   const totalPartEntreprise = delivered.length * ENTREPRISE_PART;
-  const netEntreprise = delivered.reduce((s, o) => s + o.totalProduits, 0) + totalPartEntreprise;
+  const netEntreprise = delivered.reduce((s, o) => s + (o.totalProduits ?? 0), 0) + totalPartEntreprise;
 
   const byDay = delivered.reduce((acc: Record<string, Order[]>, o) => {
     const k = dayKey(o.date);
@@ -421,7 +421,7 @@ export default function AdminDashboard() {
               shownUsers.map((u) => (
                 <View key={u.id} style={styles.memberCard}>
                   <View style={styles.memberAvatar}>
-                    <Text style={styles.memberAvatarText}>{u.prenom.charAt(0).toUpperCase()}{u.nom.charAt(0).toUpperCase()}</Text>
+                    <Text style={styles.memberAvatarText}>{(u.prenom ?? "?").charAt(0).toUpperCase()}{(u.nom ?? "?").charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{u.prenom} {u.nom}</Text>
@@ -459,7 +459,7 @@ export default function AdminDashboard() {
                   <View key={c.id} style={styles.clientCard}>
                     <TouchableOpacity style={styles.clientCardHeader} onPress={() => setExpandedClient(isExpanded ? null : c.id)} activeOpacity={0.7}>
                       <View style={styles.clientAvatar}>
-                        <Text style={styles.clientAvatarText}>{c.prenom.charAt(0).toUpperCase()}{c.nom.charAt(0).toUpperCase()}</Text>
+                        <Text style={styles.clientAvatarText}>{(c.prenom ?? "?").charAt(0).toUpperCase()}{(c.nom ?? "?").charAt(0).toUpperCase()}</Text>
                       </View>
                       <View style={styles.clientInfo}>
                         <Text style={styles.clientName}>{c.prenom} {c.nom}</Text>
@@ -485,12 +485,12 @@ export default function AdminDashboard() {
                               <View style={styles.clientOrderLeft}>
                                 <Text style={styles.clientOrderId}>#{o.id.slice(-6).toUpperCase()}</Text>
                                 <Text style={styles.clientOrderDate}>{formatDate(o.date)}</Text>
-                                <Text style={styles.clientOrderAddr}>{o.adresse.quartier}, {o.adresse.rue}</Text>
-                                <Text style={styles.clientOrderItems} numberOfLines={1}>{o.items.map((i: any) => `${i.product.nom} ×${i.quantite}`).join(", ")}</Text>
+                                <Text style={styles.clientOrderAddr}>{(o.adresse?.quartier ?? "—")}{(o.adresse?.rue || o.adresse?.details) ? `, ${o.adresse?.rue ?? o.adresse?.details}` : ""}</Text>
+                                <Text style={styles.clientOrderItems} numberOfLines={1}>{(Array.isArray(o.items) ? o.items : []).map((i: any) => `${i?.product?.nom ?? i?.nom ?? "Article"} ×${i?.quantite ?? 1}`).join(", ")}</Text>
                               </View>
                               <View style={styles.clientOrderRight}>
                                 <OrderStatusBadge statut={o.statut} size="sm" />
-                                <Text style={styles.clientOrderTotal}>{o.totalFinal.toLocaleString()} F</Text>
+                                <Text style={styles.clientOrderTotal}>{(o.totalFinal ?? 0).toLocaleString()} F</Text>
                               </View>
                             </View>
                           ))
@@ -651,7 +651,7 @@ function AssignModal({ visible, livreurs, onSelect, onCancel }: {
           livreurs.map((l) => (
             <TouchableOpacity key={l.id} style={styles.assignOption} onPress={() => onSelect(l.id)}>
               <View style={styles.assignAvatar}>
-                <Text style={styles.assignAvatarText}>{l.prenom.charAt(0)}{l.nom.charAt(0)}</Text>
+                <Text style={styles.assignAvatarText}>{(l.prenom ?? "?").charAt(0)}{(l.nom ?? "?").charAt(0)}</Text>
               </View>
               <View>
                 <Text style={styles.assignName}>{l.prenom} {l.nom}</Text>
@@ -685,47 +685,61 @@ function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus
   const nextStatus = STATUS_NEXT[order.statut];
   const livreur = order.livreurId ? livreurMap[order.livreurId] : null;
   const client = clientMap[order.userId];
+  const adresse = order.adresse ?? {} as any;
+  const totalFinal = order.totalFinal ?? 0;
+  const totalProduits = order.totalProduits ?? 0;
+  const fraisLivraison = order.fraisLivraison ?? 0;
+  const items: any[] = Array.isArray(order.items) ? order.items : [];
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View>
-          <Text style={styles.cardId}>#{order.id.slice(-6).toUpperCase()}</Text>
-          <Text style={styles.cardDate}>{formatDate(order.date)}</Text>
+          <Text style={styles.cardId}>#{(order.id ?? "").slice(-6).toUpperCase()}</Text>
+          <Text style={styles.cardDate}>{formatDate(order.date ?? "")}</Text>
         </View>
         <View style={{ alignItems: "flex-end", gap: 4 }}>
-          <OrderStatusBadge statut={order.statut} size="sm" />
-          <Text style={styles.cardTotal}>{order.totalFinal.toLocaleString()} FCFA</Text>
+          <OrderStatusBadge statut={order.statut ?? "en_attente"} size="sm" />
+          <Text style={styles.cardTotal}>{totalFinal.toLocaleString()} FCFA</Text>
         </View>
       </View>
       {client && (
         <View style={styles.cardClient}>
           <Feather name="user" size={12} color={Colors.primaryDark} />
-          <Text style={styles.cardClientText}>{client.prenom} {client.nom} · {client.telephone}</Text>
+          <Text style={styles.cardClientText}>{client.prenom ?? ""} {client.nom ?? ""} · {client.telephone ?? ""}</Text>
         </View>
       )}
       <View style={styles.cardAddress}>
         <Feather name="map-pin" size={12} color={Colors.primary} />
-        <Text style={styles.cardAddressText}>{order.adresse.quartier}, {order.adresse.rue}{order.adresse.description ? ` (${order.adresse.description})` : ""}</Text>
+        <Text style={styles.cardAddressText}>
+          {adresse.quartier ?? "—"}{(adresse.rue || adresse.details) ? `, ${adresse.rue ?? adresse.details}` : ""}
+          {adresse.description ? ` (${adresse.description})` : ""}
+        </Text>
       </View>
       <View style={styles.itemsList}>
-        {order.items.map((item: any, i: number) => (
-          <View key={i} style={styles.itemRow}>
-            <Text style={styles.itemName}>{item.product.emoji} {item.product.nom} <Text style={styles.itemQty}>×{item.quantite}</Text></Text>
-            <Text style={styles.itemPrice}>{(item.product.prix * item.quantite).toLocaleString()} F</Text>
-          </View>
-        ))}
+        {items.map((item: any, i: number) => {
+          const nom = item?.product?.nom ?? item?.nom ?? "Article";
+          const prix = item?.product?.prix ?? item?.prix ?? 0;
+          const emoji = item?.product?.emoji ?? "🛒";
+          const quantite = item?.quantite ?? 1;
+          return (
+            <View key={i} style={styles.itemRow}>
+              <Text style={styles.itemName}>{emoji} {nom} <Text style={styles.itemQty}>×{quantite}</Text></Text>
+              <Text style={styles.itemPrice}>{(prix * quantite).toLocaleString()} F</Text>
+            </View>
+          );
+        })}
         <View style={styles.itemDivider} />
         <View style={styles.itemRow}>
           <Text style={styles.itemSubLabel}>Sous-total articles</Text>
-          <Text style={styles.itemSubValue}>{order.totalProduits.toLocaleString()} F</Text>
+          <Text style={styles.itemSubValue}>{totalProduits.toLocaleString()} F</Text>
         </View>
         <View style={styles.itemRow}>
           <Text style={styles.itemSubLabel}>Frais de livraison</Text>
-          <Text style={styles.itemSubValue}>{order.fraisLivraison} F</Text>
+          <Text style={styles.itemSubValue}>{fraisLivraison.toLocaleString()} F</Text>
         </View>
         <View style={[styles.itemRow, styles.itemTotalRow]}>
           <Text style={styles.itemTotalLabel}>Total final</Text>
-          <Text style={styles.itemTotalValue}>{order.totalFinal.toLocaleString()} FCFA</Text>
+          <Text style={styles.itemTotalValue}>{totalFinal.toLocaleString()} FCFA</Text>
         </View>
         {order.statut === "livre" && (
           <View style={styles.itemRow}>
@@ -744,7 +758,7 @@ function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus
         {livreur && (
           <View style={styles.livreurBadge}>
             <Feather name="user-check" size={12} color={Colors.primaryDark} />
-            <Text style={styles.livreurText}>{livreur.prenom} {livreur.nom}</Text>
+            <Text style={styles.livreurText}>{livreur.prenom ?? ""} {livreur.nom ?? ""}</Text>
           </View>
         )}
         {order.livreurId && !livreur && (
@@ -755,7 +769,7 @@ function AdminOrderCard({ order, livreurMap = {}, clientMap = {}, onUpdateStatus
         )}
         {nextStatus && onUpdateStatus && (
           <TouchableOpacity style={styles.statusBtn} onPress={() => onUpdateStatus(order.id, nextStatus)}>
-            <Text style={styles.statusBtnText}>{STATUS_LABEL[order.statut]}</Text>
+            <Text style={styles.statusBtnText}>{STATUS_LABEL[order.statut] ?? "Avancer"}</Text>
             <Feather name="arrow-right" size={13} color={Colors.white} />
           </TouchableOpacity>
         )}
