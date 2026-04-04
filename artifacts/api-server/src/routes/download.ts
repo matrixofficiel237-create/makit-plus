@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-const APK_URL = "https://github.com/matrixofficiel237-create/makit-plus/releases/download/latest/Makit-Plus.apk";
+const APK_URL = "https://github.com/matrixofficiel237-create/makit-plus/releases/latest/download/Makit-Plus.apk";
 
 const router = Router();
 
