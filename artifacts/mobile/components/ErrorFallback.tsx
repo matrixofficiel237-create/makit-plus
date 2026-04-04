@@ -59,23 +59,21 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {__DEV__ ? (
-        <Pressable
-          onPress={() => setIsModalVisible(true)}
-          accessibilityLabel="View error details"
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.topButton,
-            {
-              top: insets.top + 16,
-              backgroundColor: theme.backgroundSecondary,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <Feather name="alert-circle" size={20} color={theme.text} />
-        </Pressable>
-      ) : null}
+      <Pressable
+        onPress={() => setIsModalVisible(true)}
+        accessibilityLabel="View error details"
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.topButton,
+          {
+            top: insets.top + 16,
+            backgroundColor: theme.backgroundSecondary,
+            opacity: pressed ? 0.8 : 1,
+          },
+        ]}
+      >
+        <Feather name="alert-circle" size={20} color={theme.text} />
+      </Pressable>
 
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>
@@ -85,6 +83,12 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
         <Text style={[styles.message, { color: theme.textSecondary }]}>
           Please reload the app to continue.
         </Text>
+
+        <View style={[styles.errorBox, { backgroundColor: "#B00020" }]}>
+          <Text style={[styles.errorBoxText, { color: "#FFFFFF", fontFamily: monoFont }]} selectable>
+            {error?.message ?? "Unknown error"}
+          </Text>
+        </View>
 
         <Pressable
           onPress={handleRestart}
@@ -282,5 +286,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     width: "100%",
+  },
+  errorBox: {
+    width: "100%",
+    borderRadius: 8,
+    padding: 12,
+    maxHeight: 120,
+  },
+  errorBoxText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });
