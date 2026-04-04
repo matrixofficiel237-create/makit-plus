@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { api } from "@/utils/api";
 import { CartItem } from "./CartContext";
 
-export type OrderStatus = "en_attente" | "achat_en_cours" | "en_livraison" | "livre";
+export type OrderStatus = "en_attente" | "confirme" | "achat_en_cours" | "en_cours" | "en_livraison" | "livre" | "annule";
 
 export interface Order {
   id: string;
