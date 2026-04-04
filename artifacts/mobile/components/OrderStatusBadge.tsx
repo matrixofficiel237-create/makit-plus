@@ -1,22 +1,32 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { OrderStatus } from "@/context/OrderContext";
 import Colors from "@/constants/colors";
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  en_attente: { label: "Commande reçue", color: "#E65100", bg: "#FFF3E0" },
-  achat_en_cours: { label: "Acheteur au marché", color: "#1565C0", bg: "#E3F2FD" },
-  en_livraison: { label: "En livraison", color: "#6A1B9A", bg: "#F3E5F5" },
-  livre: { label: "Livré", color: Colors.primaryDark, bg: Colors.primaryLighter },
+type StatusConfig = { label: string; color: string; bg: string };
+
+const STATUS_CONFIG: Record<string, StatusConfig> = {
+  en_attente:    { label: "En attente",          color: "#E65100", bg: "#FFF3E0" },
+  confirme:      { label: "Confirmé",             color: "#1565C0", bg: "#E3F2FD" },
+  achat_en_cours:{ label: "Acheteur au marché",   color: "#1565C0", bg: "#E3F2FD" },
+  en_cours:      { label: "En cours",             color: "#6A1B9A", bg: "#F3E5F5" },
+  en_livraison:  { label: "En livraison",         color: "#6A1B9A", bg: "#F3E5F5" },
+  livre:         { label: "Livré ✓",              color: Colors.primaryDark, bg: Colors.primaryLighter },
+  annule:        { label: "Annulé",               color: "#B71C1C", bg: "#FFEBEE" },
 };
 
+const FALLBACK: StatusConfig = { label: "En attente", color: "#E65100", bg: "#FFF3E0" };
+
+function getConfig(statut: string): StatusConfig {
+  return STATUS_CONFIG[statut] ?? FALLBACK;
+}
+
 interface OrderStatusBadgeProps {
-  statut: OrderStatus;
+  statut: string;
   size?: "sm" | "md";
 }
 
 export default function OrderStatusBadge({ statut, size = "md" }: OrderStatusBadgeProps) {
-  const config = STATUS_CONFIG[statut];
+  const config = getConfig(statut);
   return (
     <View style={[styles.badge, { backgroundColor: config.bg }, size === "sm" && styles.sm]}>
       <Text style={[styles.text, { color: config.color }, size === "sm" && styles.smText]}>
@@ -26,27 +36,36 @@ export default function OrderStatusBadge({ statut, size = "md" }: OrderStatusBad
   );
 }
 
-export function OrderStatusStepper({ statut }: { statut: OrderStatus }) {
-  const steps: { key: OrderStatus; label: string }[] = [
-    { key: "en_attente", label: "Commande reçue" },
-    { key: "achat_en_cours", label: "Acheteur au marché" },
-    { key: "en_livraison", label: "En livraison" },
-    { key: "livre", label: "Livré" },
-  ];
+const STEPPER_STEPS = [
+  { keys: ["en_attente"],                   label: "Commande reçue" },
+  { keys: ["confirme", "achat_en_cours"],   label: "Confirmée / Achat en cours" },
+  { keys: ["en_cours", "en_livraison"],     label: "En livraison" },
+  { keys: ["livre"],                        label: "Livré" },
+];
 
-  const currentIndex = steps.findIndex((s) => s.key === statut);
+export function OrderStatusStepper({ statut }: { statut: string }) {
+  const currentIndex = STEPPER_STEPS.findIndex((s) => s.keys.includes(statut));
+  const isCancelled = statut === "annule";
+
+  if (isCancelled) {
+    return (
+      <View style={styles.cancelledBox}>
+        <Text style={styles.cancelledText}>❌ Commande annulée</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.stepper}>
-      {steps.map((step, i) => {
-        const done = i <= currentIndex;
+      {STEPPER_STEPS.map((step, i) => {
+        const done = currentIndex >= 0 && i <= currentIndex;
         return (
-          <View key={step.key} style={styles.stepRow}>
+          <View key={i} style={styles.stepRow}>
             <View style={styles.stepLeft}>
               <View style={[styles.dot, done && styles.dotDone]}>
                 {done && <View style={styles.dotInner} />}
               </View>
-              {i < steps.length - 1 && (
+              {i < STEPPER_STEPS.length - 1 && (
                 <View style={[styles.line, i < currentIndex && styles.lineDone]} />
               )}
             </View>
@@ -77,6 +96,18 @@ const styles = StyleSheet.create({
   },
   smText: {
     fontSize: 10,
+  },
+  cancelledBox: {
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#FFEBEE",
+    alignItems: "center",
+  },
+  cancelledText: {
+    color: "#B71C1C",
+    fontWeight: "700",
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
   },
   stepper: {
     paddingVertical: 8,
