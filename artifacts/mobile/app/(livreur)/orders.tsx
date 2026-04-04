@@ -82,15 +82,15 @@ function LivreurOrderCard({ order, client, onUpdateStatus }: {
         <View style={styles.itemDivider} />
         <View style={styles.itemRow}>
           <Text style={styles.itemSubLabel}>Sous-total articles</Text>
-          <Text style={styles.itemSubValue}>{order.totalProduits.toLocaleString()} F</Text>
+          <Text style={styles.itemSubValue}>{(order.totalProduits ?? 0).toLocaleString()} F</Text>
         </View>
         <View style={styles.itemRow}>
           <Text style={styles.itemSubLabel}>Frais de livraison</Text>
-          <Text style={styles.itemSubValue}>{order.fraisLivraison} F</Text>
+          <Text style={styles.itemSubValue}>{(order.fraisLivraison ?? 0).toLocaleString()} F</Text>
         </View>
         <View style={[styles.itemRow, styles.itemTotalRow]}>
           <Text style={styles.itemTotalLabel}>Total final</Text>
-          <Text style={styles.itemTotalValue}>{order.totalFinal.toLocaleString()} FCFA</Text>
+          <Text style={styles.itemTotalValue}>{(order.totalFinal ?? 0).toLocaleString()} FCFA</Text>
         </View>
       </View>
 

@@ -117,15 +117,15 @@ export default function OrderDetailScreen() {
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Sous-total</Text>
-            <Text style={styles.summaryValue}>{order.totalProduits.toLocaleString()} FCFA</Text>
+            <Text style={styles.summaryValue}>{(order.totalProduits ?? 0).toLocaleString()} FCFA</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Livraison</Text>
-            <Text style={styles.summaryValue}>{order.fraisLivraison.toLocaleString()} FCFA</Text>
+            <Text style={styles.summaryValue}>{(order.fraisLivraison ?? 0).toLocaleString()} FCFA</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{order.totalFinal.toLocaleString()} FCFA</Text>
+            <Text style={styles.totalValue}>{(order.totalFinal ?? 0).toLocaleString()} FCFA</Text>
           </View>
         </View>
 
@@ -136,10 +136,10 @@ export default function OrderDetailScreen() {
             <Feather name="map-pin" size={16} color={Colors.primary} />
             <View>
               <Text style={styles.addressMain}>
-                {order.adresse.quartier}{(order.adresse.rue || order.adresse.details) ? `, ${order.adresse.rue ?? order.adresse.details}` : ''}
+                {order.adresse?.quartier ?? '—'}{(order.adresse?.rue || order.adresse?.details) ? `, ${order.adresse?.rue ?? order.adresse?.details}` : ''}
               </Text>
-              {!!(order.adresse.description || (order.adresse.details && order.adresse.rue)) && (
-                <Text style={styles.addressDesc}>{order.adresse.description ?? ''}</Text>
+              {!!(order.adresse?.description || (order.adresse?.details && order.adresse?.rue)) && (
+                <Text style={styles.addressDesc}>{order.adresse?.description ?? ''}</Text>
               )}
             </View>
           </View>
