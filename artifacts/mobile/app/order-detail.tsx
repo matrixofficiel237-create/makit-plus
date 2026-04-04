@@ -96,30 +96,36 @@ export default function OrderDetailScreen() {
         {/* Items */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Articles commandés</Text>
-          {order.items.map((item, i) => (
-            <View key={i} style={styles.itemRow}>
-              <Text style={styles.itemEmoji}>{item.product.emoji}</Text>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.product.nom}</Text>
-                <Text style={styles.itemQty}>x{item.quantite}</Text>
+          {order.items.map((item: any, i: number) => {
+            const nom = item?.product?.nom ?? item?.nom ?? 'Article';
+            const prix = item?.product?.prix ?? item?.prix ?? 0;
+            const emoji = item?.product?.emoji ?? '🛒';
+            const quantite = item?.quantite ?? 1;
+            return (
+              <View key={i} style={styles.itemRow}>
+                <Text style={styles.itemEmoji}>{emoji}</Text>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName}>{nom}</Text>
+                  <Text style={styles.itemQty}>x{quantite}</Text>
+                </View>
+                <Text style={styles.itemPrice}>
+                  {(prix * quantite).toLocaleString()} FCFA
+                </Text>
               </View>
-              <Text style={styles.itemPrice}>
-                {(item.product.prix * item.quantite).toLocaleString()} FCFA
-              </Text>
-            </View>
-          ))}
+            );
+          })}
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Sous-total</Text>
-            <Text style={styles.summaryValue}>{order.totalProduits.toLocaleString()} FCFA</Text>
+            <Text style={styles.summaryValue}>{(order.totalProduits ?? 0).toLocaleString()} FCFA</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Livraison</Text>
-            <Text style={styles.summaryValue}>{order.fraisLivraison.toLocaleString()} FCFA</Text>
+            <Text style={styles.summaryValue}>{(order.fraisLivraison ?? 0).toLocaleString()} FCFA</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{order.totalFinal.toLocaleString()} FCFA</Text>
+            <Text style={styles.totalValue}>{(order.totalFinal ?? 0).toLocaleString()} FCFA</Text>
           </View>
         </View>
 
@@ -129,9 +135,11 @@ export default function OrderDetailScreen() {
           <View style={styles.addressRow}>
             <Feather name="map-pin" size={16} color={Colors.primary} />
             <View>
-              <Text style={styles.addressMain}>{order.adresse.quartier}, {order.adresse.rue}</Text>
-              {!!order.adresse.description && (
-                <Text style={styles.addressDesc}>{order.adresse.description}</Text>
+              <Text style={styles.addressMain}>
+                {order.adresse?.quartier ?? '—'}{(order.adresse?.rue || order.adresse?.details) ? `, ${order.adresse?.rue ?? order.adresse?.details}` : ''}
+              </Text>
+              {!!(order.adresse?.description || (order.adresse?.details && order.adresse?.rue)) && (
+                <Text style={styles.addressDesc}>{order.adresse?.description ?? ''}</Text>
               )}
             </View>
           </View>
