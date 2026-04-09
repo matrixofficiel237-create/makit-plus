@@ -1,5 +1,5 @@
-import { db, usersTable, ordersTable } from "@workspace/db";
-import { eq, desc, inArray } from "drizzle-orm";
+import { db, usersTable, ordersTable, statsTable } from "@workspace/db";
+import { eq, desc, inArray, sql } from "drizzle-orm";
 
 export type StoredUser = typeof usersTable.$inferSelect;
 export type StoredOrder = typeof ordersTable.$inferSelect;
@@ -107,4 +107,21 @@ export async function updateOrder(id: string, patch: Partial<typeof ordersTable.
 export async function deleteOrder(id: string): Promise<boolean> {
   const rows = await db.delete(ordersTable).where(eq(ordersTable.id, id)).returning();
   return rows.length > 0;
+}
+
+export async function incrementVisitors(): Promise<number> {
+  await db
+    .insert(statsTable)
+    .values({ key: "visitors", value: 1 })
+    .onConflictDoUpdate({
+      target: statsTable.key,
+      set: { value: sql`${statsTable.value} + 1` },
+    });
+  const row = await db.select().from(statsTable).where(eq(statsTable.key, "visitors"));
+  return row[0]?.value ?? 1;
+}
+
+export async function getVisitors(): Promise<number> {
+  const row = await db.select().from(statsTable).where(eq(statsTable.key, "visitors"));
+  return row[0]?.value ?? 0;
 }

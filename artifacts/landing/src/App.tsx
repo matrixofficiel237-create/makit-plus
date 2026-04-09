@@ -12,6 +12,9 @@ import promoLivreur from "./assets/promo-livreur.png";
 import promoFamily from "./assets/promo-family.png";
 
 const APK_DOWNLOAD_URL = "https://market-fresh-delivery--makit4079.replit.app/api/download-apk";
+const API_STATS_BASE = typeof window !== "undefined"
+  ? `${window.location.origin}/api`
+  : "https://market-fresh-delivery--makit4079.replit.app/api";
 
 function downloadApk() {
   window.open(APK_DOWNLOAD_URL, "_blank", "noopener");
@@ -98,6 +101,15 @@ function HeroOrderButton() {
 }
 
 function Hero() {
+  const [visitors, setVisitors] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(API_STATS_BASE + "/stats/visit", { method: "POST" })
+      .then((r) => r.json())
+      .then((d) => setVisitors(d.visitors))
+      .catch(() => {});
+  }, []);
+
   return (
     <section style={{
       minHeight: "100vh",
@@ -173,6 +185,32 @@ function Hero() {
           </div>
         ))}
       </div>
+
+      {visitors !== null && (
+        <div style={{
+          marginTop: 32,
+          display: "inline-flex", alignItems: "center", gap: 10,
+          background: "rgba(255,255,255,0.15)",
+          backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255,255,255,0.25)",
+          borderRadius: 40,
+          padding: "10px 22px",
+          color: "white",
+          fontSize: 14,
+          fontWeight: 600,
+          letterSpacing: 0.2,
+        }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: "#69F0AE",
+            boxShadow: "0 0 6px #69F0AE",
+            display: "inline-block",
+          }} />
+          <span>
+            {visitors.toLocaleString("fr-FR")} visiteur{visitors > 1 ? "s" : ""} sur ce site
+          </span>
+        </div>
+      )}
     </section>
   );
 }
