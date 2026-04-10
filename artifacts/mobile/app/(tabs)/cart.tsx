@@ -8,6 +8,7 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -32,7 +33,7 @@ export default function CartScreen() {
   const [quartier, setQuartier] = useState("");
   const [rue, setRue] = useState("");
   const [description, setDescription] = useState("");
-  const [paiement, setPaiement] = useState<"livraison" | "mobile_money">("livraison");
+  const [paiement, setPaiement] = useState<"livraison" | "orange_money" | "momo">("livraison");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ quartier: false, rue: false });
   const [confirmed, setConfirmed] = useState(false);
@@ -74,6 +75,14 @@ export default function CartScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function openUSSD(type: "orange_money" | "momo") {
+    const code =
+      type === "momo"
+        ? `*126*4*227165*${totalFinal}%23`
+        : `%23150*46*1283376*${totalFinal}%23`;
+    Linking.openURL(`tel:${code}`).catch(() => {});
   }
 
   if (confirmed) {
@@ -246,6 +255,8 @@ export default function CartScreen() {
         {/* Paiement */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 Mode de paiement</Text>
+
+          {/* Livraison */}
           <TouchableOpacity
             style={[styles.payOption, paiement === "livraison" && styles.payOptionActive]}
             onPress={() => setPaiement("livraison")}
@@ -262,21 +273,62 @@ export default function CartScreen() {
             {paiement === "livraison" && <Feather name="check-circle" size={22} color={Colors.primary} />}
           </TouchableOpacity>
 
+          {/* Orange Money */}
           <TouchableOpacity
-            style={[styles.payOption, paiement === "mobile_money" && styles.payOptionActive]}
-            onPress={() => setPaiement("mobile_money")}
+            style={[styles.payOption, paiement === "orange_money" && styles.payOptionActiveOrange]}
+            onPress={() => setPaiement("orange_money")}
           >
-            <View style={[styles.payIcon, { backgroundColor: paiement === "mobile_money" ? Colors.primaryLighter : Colors.lightGray }]}>
-              <Feather name="smartphone" size={22} color={paiement === "mobile_money" ? Colors.primary : Colors.gray} />
+            <View style={[styles.payIcon, { backgroundColor: paiement === "orange_money" ? "#FFF3E0" : Colors.lightGray }]}>
+              <Text style={{ fontSize: 22 }}>🟠</Text>
             </View>
             <View style={styles.payInfo}>
-              <Text style={[styles.payName, paiement === "mobile_money" && { color: Colors.primaryDark }]}>
-                Mobile Money
+              <Text style={[styles.payName, paiement === "orange_money" && { color: "#E65100" }]}>
+                Orange Money
               </Text>
-              <Text style={styles.payDesc}>Orange Money · MTN MoMo</Text>
+              <Text style={styles.payDesc}>Transfert mobile avant livraison</Text>
             </View>
-            {paiement === "mobile_money" && <Feather name="check-circle" size={22} color={Colors.primary} />}
+            {paiement === "orange_money" && <Feather name="check-circle" size={22} color="#FF6D00" />}
           </TouchableOpacity>
+
+          {/* MTN MoMo */}
+          <TouchableOpacity
+            style={[styles.payOption, paiement === "momo" && styles.payOptionActiveMomo]}
+            onPress={() => setPaiement("momo")}
+          >
+            <View style={[styles.payIcon, { backgroundColor: paiement === "momo" ? "#FFFDE7" : Colors.lightGray }]}>
+              <Text style={{ fontSize: 22 }}>📱</Text>
+            </View>
+            <View style={styles.payInfo}>
+              <Text style={[styles.payName, paiement === "momo" && { color: "#F57F17" }]}>
+                MTN Mobile Money
+              </Text>
+              <Text style={styles.payDesc}>Transfert MTN avant livraison</Text>
+            </View>
+            {paiement === "momo" && <Feather name="check-circle" size={22} color="#FDD835" />}
+          </TouchableOpacity>
+
+          {/* Carte USSD – Orange ou MTN */}
+          {(paiement === "orange_money" || paiement === "momo") && (
+            <View style={[styles.ussdCard, { borderColor: paiement === "orange_money" ? "#FF6D00" : "#FDD835" }]}>
+              <Text style={styles.ussdLabel}>Code à composer :</Text>
+              <Text style={styles.ussdCode}>
+                {paiement === "momo"
+                  ? `*126*4*227165*${totalFinal}#`
+                  : `#150*46*1283376*${totalFinal}#`}
+              </Text>
+              <Text style={styles.ussdHint}>
+                Le montant total ({totalFinal.toLocaleString()} FCFA) est déjà inclus dans le code.
+              </Text>
+              <TouchableOpacity
+                style={[styles.ussdBtn, { backgroundColor: paiement === "orange_money" ? "#FF6D00" : "#FFC107" }]}
+                onPress={() => openUSSD(paiement)}
+                activeOpacity={0.8}
+              >
+                <Feather name="phone-call" size={17} color="white" />
+                <Text style={styles.ussdBtnText}>📞 Composer le code maintenant</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -441,6 +493,56 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   payOptionActive: { borderColor: Colors.primary },
+  payOptionActiveOrange: { borderColor: "#FF6D00", backgroundColor: "#FFF3E0" },
+  payOptionActiveMomo: { borderColor: "#FFC107", backgroundColor: "#FFFDE7" },
+  ussdCard: {
+    borderWidth: 2,
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+    backgroundColor: "#FAFAFA",
+  },
+  ussdLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#555",
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  ussdCode: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    textAlign: "center",
+  },
+  ussdHint: {
+    fontSize: 12,
+    color: "#888",
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  ussdBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  ussdBtnText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+  },
   payIcon: {
     width: 44,
     height: 44,
