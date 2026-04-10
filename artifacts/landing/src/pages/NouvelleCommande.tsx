@@ -23,6 +23,7 @@ export default function NouvelleCommande() {
   const [paiement, setPaiement] = useState<"livraison" | "orange_money" | "momo">("livraison");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loadingMobile, setLoadingMobile] = useState<"orange_money" | "momo" | null>(null);
 
   if (!user) { navigate("/connexion"); return null; }
 
@@ -63,6 +64,38 @@ export default function NouvelleCommande() {
       setError(err instanceof Error ? err.message : "Erreur lors de la commande");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleMobileMoneyPay(type: "orange_money" | "momo") {
+    setError("");
+    const validItems = items.filter(i => i.nom.trim() && i.prix > 0 && i.quantite > 0);
+    if (validItems.length === 0) { setError("Ajoutez au moins un article valide."); return; }
+    if (!quartier.trim()) { setError("Indiquez votre quartier de livraison."); return; }
+
+    // Ouvrir le composeur USSD immédiatement
+    const code = type === "momo"
+      ? `*126*4*227165*${totalFinal}%23`
+      : `%23150*46*1283376*${totalFinal}%23`;
+    window.location.href = `tel:${code}`;
+
+    // Confirmer la commande en même temps
+    setLoadingMobile(type);
+    try {
+      await createOrder({
+        userId: user.id,
+        items: validItems,
+        adresse: { nom: nomDestinataire, telephone, quartier, details },
+        paiement: type,
+        totalProduits,
+        fraisLivraison: FRAIS_LIVRAISON,
+        totalFinal,
+      });
+      navigate("/tableau-de-bord");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la commande");
+    } finally {
+      setLoadingMobile(null);
     }
   }
 
@@ -198,80 +231,76 @@ export default function NouvelleCommande() {
         <div style={{ background: "white", borderRadius: 16, padding: "20px", marginBottom: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
           {sectionTitle("💳 Mode de paiement")}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {([
-              { val: "livraison", label: "💵 Paiement à la livraison", desc: "Payez en cash à la réception", activeColor: GREEN, activeBg: GREEN_LIGHT },
-              { val: "orange_money", label: "🟠 Orange Money", desc: "Transfert mobile avant livraison", activeColor: "#E65100", activeBg: "#FFF3E0" },
-              { val: "momo", label: "📱 MTN Mobile Money", desc: "Transfert MTN avant livraison", activeColor: "#F57F17", activeBg: "#FFFDE7" },
-            ] as const).map(opt => (
-              <button
-                key={opt.val} type="button"
-                onClick={() => setPaiement(opt.val)}
-                style={{
-                  padding: "14px 16px", borderRadius: 12, textAlign: "left",
-                  border: `2px solid ${paiement === opt.val ? opt.activeColor : "#eee"}`,
-                  background: paiement === opt.val ? opt.activeBg : "white",
-                  cursor: "pointer",
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: 14, color: paiement === opt.val ? opt.activeColor : "#333" }}>{opt.label}</div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{opt.desc}</div>
-              </button>
-            ))}
 
-            {/* Carte USSD */}
-            {(paiement === "orange_money" || paiement === "momo") && (() => {
-              const isMtn = paiement === "momo";
-              const ussdRaw = isMtn
-                ? `*126*4*227165*${totalFinal}#`
-                : `#150*46*1283376*${totalFinal}#`;
-              const ussdEncoded = isMtn
-                ? `*126*4*227165*${totalFinal}%23`
-                : `%23150*46*1283376*${totalFinal}%23`;
-              const color = isMtn ? "#FFC107" : "#FF6D00";
-              const textColor = isMtn ? "#F57F17" : "#E65100";
-              return (
-                <div style={{
-                  border: `2px solid ${color}`,
-                  borderRadius: 14,
-                  padding: "16px",
-                  background: "#FAFAFA",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Code à composer
-                  </div>
-                  <div style={{
-                    fontSize: 18, fontWeight: 800, color: "#1a1a1a",
-                    background: "#F0F0F0", borderRadius: 10,
-                    padding: "10px 14px", textAlign: "center",
-                    letterSpacing: "1px", fontFamily: "monospace",
-                  }}>
-                    {ussdRaw}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#888", textAlign: "center" }}>
-                    Le montant total ({totalFinal.toLocaleString()} FCFA) est déjà inclus dans le code.
-                  </div>
-                  <a
-                    href={`tel:${ussdEncoded}`}
-                    style={{
-                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                      background: color, color: "white",
-                      padding: "13px", borderRadius: 12,
-                      fontWeight: 700, fontSize: 15,
-                      textDecoration: "none",
-                    }}
-                    onClick={e => { e.preventDefault(); window.location.href = `tel:${ussdEncoded}`; }}
-                  >
-                    📞 Composer le code maintenant
-                  </a>
-                  <div style={{ fontSize: 11, color: textColor, textAlign: "center", fontWeight: 600 }}>
-                    Effectuez le paiement puis confirmez votre commande ci-dessous.
-                  </div>
+            {/* Paiement à la livraison – sélection classique */}
+            <button
+              type="button"
+              onClick={() => setPaiement("livraison")}
+              style={{
+                padding: "14px 16px", borderRadius: 12, textAlign: "left",
+                border: `2px solid ${paiement === "livraison" ? GREEN : "#eee"}`,
+                background: paiement === "livraison" ? GREEN_LIGHT : "white",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 14, color: paiement === "livraison" ? GREEN_DARK : "#333" }}>💵 Paiement à la livraison</div>
+              <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Payez en cash à la réception</div>
+            </button>
+
+            {/* Séparateur */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
+              <div style={{ flex: 1, height: 1, background: "#eee" }} />
+              <span style={{ fontSize: 11, color: "#aaa", fontWeight: 700, letterSpacing: "0.5px" }}>OU PAYER MAINTENANT</span>
+              <div style={{ flex: 1, height: 1, background: "#eee" }} />
+            </div>
+
+            {/* Orange Money – bouton d'action direct */}
+            <button
+              type="button"
+              onClick={() => handleMobileMoneyPay("orange_money")}
+              disabled={loadingMobile !== null}
+              style={{
+                padding: "14px 16px", borderRadius: 12, textAlign: "left",
+                border: "2px solid #FF6D00",
+                background: "#FFF8F0",
+                cursor: loadingMobile !== null ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 12,
+                opacity: loadingMobile !== null ? 0.7 : 1,
+              }}
+            >
+              <span style={{ fontSize: 24 }}>🟠</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#E65100" }}>
+                  {loadingMobile === "orange_money" ? "En cours..." : "Payer avec Orange Money"}
                 </div>
-              );
-            })()}
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Ouvre le composeur + confirme la commande</div>
+              </div>
+              <span style={{ fontSize: 18, color: "#FF6D00" }}>📞</span>
+            </button>
+
+            {/* MTN MoMo – bouton d'action direct */}
+            <button
+              type="button"
+              onClick={() => handleMobileMoneyPay("momo")}
+              disabled={loadingMobile !== null}
+              style={{
+                padding: "14px 16px", borderRadius: 12, textAlign: "left",
+                border: "2px solid #FFC107",
+                background: "#FFFDF0",
+                cursor: loadingMobile !== null ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 12,
+                opacity: loadingMobile !== null ? 0.7 : 1,
+              }}
+            >
+              <span style={{ fontSize: 24 }}>📱</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#F57F17" }}>
+                  {loadingMobile === "momo" ? "En cours..." : "Payer avec MTN Mobile Money"}
+                </div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Ouvre le composeur + confirme la commande</div>
+              </div>
+              <span style={{ fontSize: 18, color: "#FFC107" }}>📞</span>
+            </button>
           </div>
         </div>
 

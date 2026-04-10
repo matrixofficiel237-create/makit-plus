@@ -77,12 +77,44 @@ export default function CartScreen() {
     }
   }
 
-  function openUSSD(type: "orange_money" | "momo") {
-    const code =
-      type === "momo"
-        ? `*126*4*227165*${totalFinal}%23`
-        : `%23150*46*1283376*${totalFinal}%23`;
+  async function handleMobileMoneyPay(type: "orange_money" | "momo") {
+    setSubmitError("");
+    const newErrors = { quartier: !quartier.trim(), rue: !rue.trim() };
+    setErrors(newErrors);
+    if (newErrors.quartier || newErrors.rue) {
+      setSubmitError("Remplissez d'abord votre adresse (quartier et rue) avant de payer");
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
+    if (!user) { router.replace("/(auth)/login"); return; }
+
+    // Ouvrir le composeur USSD immédiatement
+    const code = type === "momo"
+      ? `*126*4*227165*${totalFinal}%23`
+      : `%23150*46*1283376*${totalFinal}%23`;
     Linking.openURL(`tel:${code}`).catch(() => {});
+
+    // Confirmer la commande en même temps
+    setPaiement(type);
+    setLoading(true);
+    try {
+      await createOrder({
+        userId: user.id,
+        items: [...items],
+        adresse: { quartier: quartier.trim(), rue: rue.trim(), description: description.trim() },
+        paiement: type,
+        totalProduits,
+        fraisLivraison,
+        totalFinal,
+      });
+      clearCart();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setConfirmed(true);
+    } catch {
+      setSubmitError("Erreur réseau. Vérifiez votre connexion et réessayez.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (confirmed) {
@@ -256,7 +288,7 @@ export default function CartScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 Mode de paiement</Text>
 
-          {/* Livraison */}
+          {/* Paiement à la livraison – sélection classique */}
           <TouchableOpacity
             style={[styles.payOption, paiement === "livraison" && styles.payOptionActive]}
             onPress={() => setPaiement("livraison")}
@@ -273,62 +305,46 @@ export default function CartScreen() {
             {paiement === "livraison" && <Feather name="check-circle" size={22} color={Colors.primary} />}
           </TouchableOpacity>
 
-          {/* Orange Money */}
+          {/* Séparateur */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
+            <Text style={{ fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" }}>OU PAYER MAINTENANT</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
+          </View>
+
+          {/* Orange Money – bouton d'action direct */}
           <TouchableOpacity
-            style={[styles.payOption, paiement === "orange_money" && styles.payOptionActiveOrange]}
-            onPress={() => setPaiement("orange_money")}
+            style={styles.mobilePayBtn}
+            onPress={() => handleMobileMoneyPay("orange_money")}
+            disabled={loading}
+            activeOpacity={0.8}
           >
-            <View style={[styles.payIcon, { backgroundColor: paiement === "orange_money" ? "#FFF3E0" : Colors.lightGray }]}>
+            <View style={[styles.payIcon, { backgroundColor: "#FFF3E0" }]}>
               <Text style={{ fontSize: 22 }}>🟠</Text>
             </View>
             <View style={styles.payInfo}>
-              <Text style={[styles.payName, paiement === "orange_money" && { color: "#E65100" }]}>
-                Orange Money
-              </Text>
-              <Text style={styles.payDesc}>Transfert mobile avant livraison</Text>
+              <Text style={[styles.payName, { color: "#E65100" }]}>Payer avec Orange Money</Text>
+              <Text style={styles.payDesc}>Ouvre le composeur + confirme la commande</Text>
             </View>
-            {paiement === "orange_money" && <Feather name="check-circle" size={22} color="#FF6D00" />}
+            <Feather name="phone-call" size={20} color="#FF6D00" />
           </TouchableOpacity>
 
-          {/* MTN MoMo */}
+          {/* MTN MoMo – bouton d'action direct */}
           <TouchableOpacity
-            style={[styles.payOption, paiement === "momo" && styles.payOptionActiveMomo]}
-            onPress={() => setPaiement("momo")}
+            style={styles.mtnPayBtn}
+            onPress={() => handleMobileMoneyPay("momo")}
+            disabled={loading}
+            activeOpacity={0.8}
           >
-            <View style={[styles.payIcon, { backgroundColor: paiement === "momo" ? "#FFFDE7" : Colors.lightGray }]}>
+            <View style={[styles.payIcon, { backgroundColor: "#FFFDE7" }]}>
               <Text style={{ fontSize: 22 }}>📱</Text>
             </View>
             <View style={styles.payInfo}>
-              <Text style={[styles.payName, paiement === "momo" && { color: "#F57F17" }]}>
-                MTN Mobile Money
-              </Text>
-              <Text style={styles.payDesc}>Transfert MTN avant livraison</Text>
+              <Text style={[styles.payName, { color: "#F57F17" }]}>Payer avec MTN MoMo</Text>
+              <Text style={styles.payDesc}>Ouvre le composeur + confirme la commande</Text>
             </View>
-            {paiement === "momo" && <Feather name="check-circle" size={22} color="#FDD835" />}
+            <Feather name="phone-call" size={20} color="#FFC107" />
           </TouchableOpacity>
-
-          {/* Carte USSD – Orange ou MTN */}
-          {(paiement === "orange_money" || paiement === "momo") && (
-            <View style={[styles.ussdCard, { borderColor: paiement === "orange_money" ? "#FF6D00" : "#FDD835" }]}>
-              <Text style={styles.ussdLabel}>Code à composer :</Text>
-              <Text style={styles.ussdCode}>
-                {paiement === "momo"
-                  ? `*126*4*227165*${totalFinal}#`
-                  : `#150*46*1283376*${totalFinal}#`}
-              </Text>
-              <Text style={styles.ussdHint}>
-                Le montant total ({totalFinal.toLocaleString()} FCFA) est déjà inclus dans le code.
-              </Text>
-              <TouchableOpacity
-                style={[styles.ussdBtn, { backgroundColor: paiement === "orange_money" ? "#FF6D00" : "#FFC107" }]}
-                onPress={() => openUSSD(paiement)}
-                activeOpacity={0.8}
-              >
-                <Feather name="phone-call" size={17} color="white" />
-                <Text style={styles.ussdBtnText}>📞 Composer le code maintenant</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
       </ScrollView>
 
@@ -493,55 +509,25 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   payOptionActive: { borderColor: Colors.primary },
-  payOptionActiveOrange: { borderColor: "#FF6D00", backgroundColor: "#FFF3E0" },
-  payOptionActiveMomo: { borderColor: "#FFC107", backgroundColor: "#FFFDE7" },
-  ussdCard: {
-    borderWidth: 2,
-    borderRadius: 14,
-    padding: 16,
-    gap: 10,
-    backgroundColor: "#FAFAFA",
-  },
-  ussdLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#555",
-    fontFamily: "Inter_600SemiBold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  ussdCode: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
-    backgroundColor: "#F5F5F5",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    textAlign: "center",
-  },
-  ussdHint: {
-    fontSize: 12,
-    color: "#888",
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  ussdBtn: {
+  mobilePayBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
+    gap: 12,
+    backgroundColor: "#FFF8F0",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: "#FF6D00",
   },
-  ussdBtnText: {
-    color: "white",
-    fontSize: 15,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
+  mtnPayBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#FFFDF0",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: "#FFC107",
   },
   payIcon: {
     width: 44,
