@@ -199,24 +199,79 @@ export default function NouvelleCommande() {
           {sectionTitle("💳 Mode de paiement")}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {([
-              { val: "livraison", label: "💵 Paiement à la livraison", desc: "Payez en cash à la réception" },
-              { val: "orange_money", label: "🟠 Orange Money", desc: "Transfert mobile avant livraison" },
-              { val: "momo", label: "📱 MTN Mobile Money", desc: "Transfert MTN avant livraison" },
+              { val: "livraison", label: "💵 Paiement à la livraison", desc: "Payez en cash à la réception", activeColor: GREEN, activeBg: GREEN_LIGHT },
+              { val: "orange_money", label: "🟠 Orange Money", desc: "Transfert mobile avant livraison", activeColor: "#E65100", activeBg: "#FFF3E0" },
+              { val: "momo", label: "📱 MTN Mobile Money", desc: "Transfert MTN avant livraison", activeColor: "#F57F17", activeBg: "#FFFDE7" },
             ] as const).map(opt => (
               <button
                 key={opt.val} type="button"
                 onClick={() => setPaiement(opt.val)}
                 style={{
                   padding: "14px 16px", borderRadius: 12, textAlign: "left",
-                  border: `2px solid ${paiement === opt.val ? GREEN : "#eee"}`,
-                  background: paiement === opt.val ? GREEN_LIGHT : "white",
+                  border: `2px solid ${paiement === opt.val ? opt.activeColor : "#eee"}`,
+                  background: paiement === opt.val ? opt.activeBg : "white",
                   cursor: "pointer",
                 }}
               >
-                <div style={{ fontWeight: 700, fontSize: 14, color: paiement === opt.val ? GREEN_DARK : "#333" }}>{opt.label}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: paiement === opt.val ? opt.activeColor : "#333" }}>{opt.label}</div>
                 <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{opt.desc}</div>
               </button>
             ))}
+
+            {/* Carte USSD */}
+            {(paiement === "orange_money" || paiement === "momo") && (() => {
+              const isMtn = paiement === "momo";
+              const ussdRaw = isMtn
+                ? `*126*4*227165*${totalFinal}#`
+                : `#150*46*1283376*${totalFinal}#`;
+              const ussdEncoded = isMtn
+                ? `*126*4*227165*${totalFinal}%23`
+                : `%23150*46*1283376*${totalFinal}%23`;
+              const color = isMtn ? "#FFC107" : "#FF6D00";
+              const textColor = isMtn ? "#F57F17" : "#E65100";
+              return (
+                <div style={{
+                  border: `2px solid ${color}`,
+                  borderRadius: 14,
+                  padding: "16px",
+                  background: "#FAFAFA",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Code à composer
+                  </div>
+                  <div style={{
+                    fontSize: 18, fontWeight: 800, color: "#1a1a1a",
+                    background: "#F0F0F0", borderRadius: 10,
+                    padding: "10px 14px", textAlign: "center",
+                    letterSpacing: "1px", fontFamily: "monospace",
+                  }}>
+                    {ussdRaw}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#888", textAlign: "center" }}>
+                    Le montant total ({totalFinal.toLocaleString()} FCFA) est déjà inclus dans le code.
+                  </div>
+                  <a
+                    href={`tel:${ussdEncoded}`}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      background: color, color: "white",
+                      padding: "13px", borderRadius: 12,
+                      fontWeight: 700, fontSize: 15,
+                      textDecoration: "none",
+                    }}
+                    onClick={e => { e.preventDefault(); window.location.href = `tel:${ussdEncoded}`; }}
+                  >
+                    📞 Composer le code maintenant
+                  </a>
+                  <div style={{ fontSize: 11, color: textColor, textAlign: "center", fontWeight: 600 }}>
+                    Effectuez le paiement puis confirmez votre commande ci-dessous.
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
