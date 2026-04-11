@@ -1,6 +1,6 @@
 export const API_BASE = "https://market-fresh-delivery--makit4079.replit.app/api";
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit, _retry = 1): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
@@ -8,6 +8,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       ...options,
     });
   } catch {
+    if (_retry > 0) {
+      await new Promise(r => setTimeout(r, 2500));
+      return apiFetch<T>(path, options, 0);
+    }
     throw new Error("Impossible de se connecter au serveur. Vérifiez votre connexion internet.");
   }
 
@@ -30,7 +34,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ telephone, motDePasse }),
       }),
-    register: (body: { nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string }) =>
+    register: (body: { nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string; codeParrain?: string }) =>
       apiFetch<{ user: any }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(body),
@@ -69,5 +73,15 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ token }),
       }),
+  },
+  referral: {
+    get: (userId: string) =>
+      apiFetch<{ promoCode: string | null; points: number; rewardsUsed: number; availableRewards: number; history: any[] }>(`/referral/${userId}`),
+    generate: (userId: string) =>
+      apiFetch<{ promoCode: string }>(`/referral/${userId}/generate`, { method: "POST" }),
+    useReward: (userId: string) =>
+      apiFetch<{ ok: boolean; availableRewards: number }>(`/referral/${userId}/use-reward`, { method: "POST" }),
+    adminStats: () =>
+      apiFetch<any>("/referral/admin/all"),
   },
 };
