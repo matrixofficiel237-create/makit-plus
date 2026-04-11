@@ -96,20 +96,24 @@ export default function AdminDashboard() {
     recentReferrals: any[];
   } | null>(null);
   const [referralLoading, setReferralLoading] = useState(false);
+  const [referralError, setReferralError] = useState(false);
 
-  async function loadReferralAdmin() {
+  const loadReferralAdmin = useCallback(async () => {
     setReferralLoading(true);
+    setReferralError(false);
     try {
       const data = await api.referral.adminAll();
       setReferralAdmin(data);
-    } catch {} finally {
+    } catch {
+      setReferralError(true);
+    } finally {
       setReferralLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (activeTab === "parrainage") loadReferralAdmin();
-  }, [activeTab]);
+  }, [activeTab, loadReferralAdmin]);
 
   useFocusEffect(useCallback(() => { refreshOrders(); loadUsers(); }, []));
 
@@ -533,10 +537,19 @@ export default function AdminDashboard() {
         {/* ── PARRAINAGE ── */}
         {activeTab === "parrainage" && (
           <>
-            {referralLoading || !referralAdmin ? (
+            {referralLoading ? (
               <View style={styles.empty}>
                 <ActivityIndicator size="large" color={Colors.primary} />
                 <Text style={styles.emptyText}>Chargement des données...</Text>
+              </View>
+            ) : referralError || !referralAdmin ? (
+              <View style={styles.empty}>
+                <Feather name="wifi-off" size={40} color={Colors.border} />
+                <Text style={styles.emptyText}>Impossible de charger les données</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={loadReferralAdmin}>
+                  <Feather name="refresh-cw" size={15} color={Colors.white} />
+                  <Text style={styles.retryBtnText}>Réessayer</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <>
@@ -1120,6 +1133,8 @@ const styles = StyleSheet.create({
   passRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.background, borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10 },
   eyeBtn: { paddingHorizontal: 12, paddingVertical: 11 },
 
+  retryBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20, marginTop: 12 },
+  retryBtnText: { color: Colors.white, fontSize: 14, fontWeight: "700", fontFamily: "Inter_700Bold" },
   // ── Parrainage tab ──
   referralStatsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 4 },
   referralStatCard: { flex: 1, minWidth: "45%", backgroundColor: Colors.white, borderRadius: 14, padding: 14, borderLeftWidth: 4, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 4, gap: 4 },
