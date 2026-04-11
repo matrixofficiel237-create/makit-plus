@@ -537,12 +537,7 @@ export default function AdminDashboard() {
         {/* ── PARRAINAGE ── */}
         {activeTab === "parrainage" && (
           <>
-            {referralLoading ? (
-              <View style={styles.empty}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.emptyText}>Chargement des données...</Text>
-              </View>
-            ) : referralError || !referralAdmin ? (
+            {referralError ? (
               <View style={styles.empty}>
                 <Feather name="wifi-off" size={40} color={Colors.border} />
                 <Text style={styles.emptyText}>Impossible de charger les données</Text>
@@ -550,6 +545,11 @@ export default function AdminDashboard() {
                   <Feather name="refresh-cw" size={15} color={Colors.white} />
                   <Text style={styles.retryBtnText}>Réessayer</Text>
                 </TouchableOpacity>
+              </View>
+            ) : referralLoading || !referralAdmin ? (
+              <View style={styles.empty}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.emptyText}>Chargement des données...</Text>
               </View>
             ) : (
               <>
