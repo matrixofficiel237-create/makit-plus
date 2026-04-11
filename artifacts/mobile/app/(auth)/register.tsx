@@ -24,6 +24,7 @@ export default function RegisterScreen() {
     adresse: "",
     motDePasse: "",
     confirmMotDePasse: "",
+    codeParrain: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -55,6 +56,7 @@ export default function RegisterScreen() {
         telephone: form.telephone,
         adresse: form.adresse,
         motDePasse: form.motDePasse,
+        codeParrain: form.codeParrain.trim() || undefined,
       });
       setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -160,6 +162,23 @@ export default function RegisterScreen() {
               onChangeText={(v) => update("confirmMotDePasse", v)}
               secureTextEntry
             />
+          </View>
+
+          {/* Code parrain optionnel */}
+          <View style={styles.promoSection}>
+            <View style={styles.promoHeader}>
+              <Text style={{ fontSize: 18 }}>🎁</Text>
+              <Text style={styles.promoTitle}>Vous avez un code parrain ?</Text>
+            </View>
+            <TextInput
+              style={styles.promoInput}
+              placeholder="Ex: HENRY123 (optionnel)"
+              placeholderTextColor={Colors.gray}
+              value={form.codeParrain}
+              onChangeText={(v) => update("codeParrain", v.toUpperCase())}
+              autoCapitalize="characters"
+            />
+            <Text style={styles.promoHint}>Entrez le code d'un ami pour lui offrir 1 point</Text>
           </View>
 
           <TouchableOpacity
@@ -294,5 +313,42 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
+  },
+  promoSection: {
+    backgroundColor: "#F1FDF3",
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
+    marginTop: 4,
+  },
+  promoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  promoTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.primaryDark,
+    fontFamily: "Inter_700Bold",
+  },
+  promoInput: {
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 15,
+    color: Colors.text,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+  },
+  promoHint: {
+    fontSize: 11,
+    color: Colors.textLight,
+    fontFamily: "Inter_400Regular",
   },
 });
