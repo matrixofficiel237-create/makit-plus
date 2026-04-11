@@ -81,7 +81,7 @@ export const api = {
       apiFetch<{ promoCode: string }>(`/referral/${userId}/generate`, { method: "POST" }),
     useReward: (userId: string) =>
       apiFetch<{ ok: boolean; availableRewards: number }>(`/referral/${userId}/use-reward`, { method: "POST" }),
-    adminStats: () =>
+    adminAll: () =>
       apiFetch<any>("/referral/admin/all"),
   },
 };
