@@ -1,6 +1,6 @@
 export const API_BASE = "https://market-fresh-delivery--makit4079.replit.app/api";
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit, _retry = 1): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
@@ -8,6 +8,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       ...options,
     });
   } catch {
+    if (_retry > 0) {
+      await new Promise(r => setTimeout(r, 2500));
+      return apiFetch<T>(path, options, 0);
+    }
     throw new Error("Impossible de se connecter au serveur. Vérifiez votre connexion internet.");
   }
 

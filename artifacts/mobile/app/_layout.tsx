@@ -14,6 +14,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { API_BASE } from "@/utils/api";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { OrderProvider } from "@/context/OrderContext";
@@ -44,6 +45,11 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+
+  useEffect(() => {
+    // Réveil du serveur de production au démarrage
+    fetch(API_BASE.replace("/api", "/health")).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
