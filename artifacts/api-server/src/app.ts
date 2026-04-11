@@ -29,7 +29,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/health", (_req, res) => res.json({ ok: true, ts: Date.now() }));
 app.use("/api", router);
 
 export default app;
