@@ -46,7 +46,7 @@ function StatCard({ label, value, color, icon }: { label: string; value: string 
   );
 }
 
-type Tab = "orders" | "stats" | "equipe" | "clients" | "settings";
+type Tab = "orders" | "stats" | "equipe" | "clients" | "parrainage" | "settings";
 type TeamSection = "sous_admin" | "livreur";
 
 const blankForm = { nom: "", prenom: "", telephone: "", motDePasse: "" };
@@ -85,6 +85,31 @@ export default function AdminDashboard() {
 
   // Expanded client (to see their orders)
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
+
+  // Referral / Parrainage admin data
+  const [referralAdmin, setReferralAdmin] = useState<{
+    totalReferrals: number;
+    totalPoints: number;
+    totalRewardsUsed: number;
+    usersWithPromo: number;
+    topReferrers: any[];
+    recentReferrals: any[];
+  } | null>(null);
+  const [referralLoading, setReferralLoading] = useState(false);
+
+  async function loadReferralAdmin() {
+    setReferralLoading(true);
+    try {
+      const data = await api.referral.adminAll();
+      setReferralAdmin(data);
+    } catch {} finally {
+      setReferralLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "parrainage") loadReferralAdmin();
+  }, [activeTab]);
 
   useFocusEffect(useCallback(() => { refreshOrders(); loadUsers(); }, []));
 
@@ -225,6 +250,7 @@ export default function AdminDashboard() {
     { key: "stats", label: "Finances", icon: "bar-chart-2" },
     { key: "equipe", label: "Équipe", icon: "users" },
     { key: "clients", label: `Clients (${clients.length})`, icon: "user" },
+    { key: "parrainage", label: "Parrainage", icon: "gift" },
     { key: "settings", label: "Réglages", icon: "settings" },
   ];
 
@@ -500,6 +526,160 @@ export default function AdminDashboard() {
                   </View>
                 );
               })
+            )}
+          </>
+        )}
+
+        {/* ── PARRAINAGE ── */}
+        {activeTab === "parrainage" && (
+          <>
+            {referralLoading || !referralAdmin ? (
+              <View style={styles.empty}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.emptyText}>Chargement des données...</Text>
+              </View>
+            ) : (
+              <>
+                {/* ── Summary cards ── */}
+                <Text style={styles.sectionTitle}>📊 Vue d'ensemble</Text>
+                <View style={styles.referralStatsGrid}>
+                  <View style={[styles.referralStatCard, { borderLeftColor: Colors.primary }]}>
+                    <Text style={styles.referralStatValue}>{referralAdmin.usersWithPromo}</Text>
+                    <Text style={styles.referralStatLabel}>Codes promo générés</Text>
+                  </View>
+                  <View style={[styles.referralStatCard, { borderLeftColor: Colors.orange }]}>
+                    <Text style={styles.referralStatValue}>{referralAdmin.totalReferrals}</Text>
+                    <Text style={styles.referralStatLabel}>Inscriptions parrainées</Text>
+                  </View>
+                  <View style={[styles.referralStatCard, { borderLeftColor: "#7B1FA2" }]}>
+                    <Text style={styles.referralStatValue}>{referralAdmin.totalPoints}</Text>
+                    <Text style={styles.referralStatLabel}>Points distribués</Text>
+                  </View>
+                  <View style={[styles.referralStatCard, { borderLeftColor: Colors.red }]}>
+                    <Text style={styles.referralStatValue}>{referralAdmin.totalRewardsUsed}</Text>
+                    <Text style={styles.referralStatLabel}>Récompenses utilisées</Text>
+                  </View>
+                </View>
+
+                {/* ── Conversions ── */}
+                <View style={styles.conversionCard}>
+                  <Text style={styles.conversionTitle}>💰 Conversions en valeur</Text>
+                  <View style={styles.conversionRow}>
+                    <View style={styles.conversionItem}>
+                      <Text style={styles.conversionEmoji}>🏆</Text>
+                      <Text style={styles.conversionVal}>{referralAdmin.totalRewardsUsed}</Text>
+                      <Text style={styles.conversionLbl}>Courses offertes</Text>
+                    </View>
+                    <View style={styles.conversionDivider} />
+                    <View style={styles.conversionItem}>
+                      <Text style={styles.conversionEmoji}>💵</Text>
+                      <Text style={styles.conversionVal}>{(referralAdmin.totalRewardsUsed * 3500).toLocaleString()} F</Text>
+                      <Text style={styles.conversionLbl}>Valeur totale</Text>
+                    </View>
+                    <View style={styles.conversionDivider} />
+                    <View style={styles.conversionItem}>
+                      <Text style={styles.conversionEmoji}>⏳</Text>
+                      <Text style={styles.conversionVal}>
+                        {referralAdmin.topReferrers.reduce((s: number, u: any) => s + u.availableRewards, 0)}
+                      </Text>
+                      <Text style={styles.conversionLbl}>Récompenses en attente</Text>
+                    </View>
+                  </View>
+                  <View style={styles.conversionFooter}>
+                    <Text style={styles.conversionFooterText}>
+                      Coût total potentiel (récompenses en attente) :{" "}
+                      <Text style={{ color: Colors.red, fontWeight: "700" }}>
+                        {(referralAdmin.topReferrers.reduce((s: number, u: any) => s + u.availableRewards, 0) * 3500).toLocaleString()} FCFA
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+
+                {/* ── Classement des parrains ── */}
+                <Text style={styles.sectionTitle}>🥇 Classement des parrains</Text>
+                {referralAdmin.topReferrers.length === 0 ? (
+                  <View style={styles.empty}>
+                    <Feather name="award" size={36} color={Colors.border} />
+                    <Text style={styles.emptyText}>Aucun parrainage enregistré</Text>
+                  </View>
+                ) : (
+                  referralAdmin.topReferrers.map((u: any, i: number) => (
+                    <View key={u.id} style={styles.referrerCard}>
+                      <View style={[styles.referrerRank, i < 3 && styles.referrerRankTop]}>
+                        <Text style={[styles.referrerRankText, i < 3 && styles.referrerRankTextTop]}>
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                        </Text>
+                      </View>
+                      <View style={styles.referrerInfo}>
+                        <Text style={styles.referrerName}>{u.prenom} {u.nom}</Text>
+                        <View style={styles.referrerCodeRow}>
+                          <Text style={styles.referrerCode}>{u.promoCode ?? "—"}</Text>
+                          {u.availableRewards > 0 && (
+                            <View style={styles.rewardPendingBadge}>
+                              <Text style={styles.rewardPendingText}>🏆 {u.availableRewards} à utiliser</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.referrerStats}>
+                        <Text style={styles.referrerPoints}>{u.points} pts</Text>
+                        <Text style={styles.referrerUsed}>{u.rewardsUsed} utilisée{u.rewardsUsed !== 1 ? "s" : ""}</Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+
+                {/* ── Historique récent des inscriptions parrainées ── */}
+                {referralAdmin.recentReferrals.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>📋 Inscriptions parrainées récentes</Text>
+                    {referralAdmin.recentReferrals.map((r: any, i: number) => (
+                      <View key={i} style={styles.referralHistoryRow}>
+                        <View style={styles.referralHistoryDot} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.referralHistoryName}>{r.referredUserName}</Text>
+                          <Text style={styles.referralHistoryDate}>
+                            Parrainé par <Text style={{ fontWeight: "700", color: Colors.primaryDark }}>{r.referrerName}</Text>
+                            {r.referrerCode ? ` · code ${r.referrerCode}` : ""}
+                          </Text>
+                          <Text style={styles.referralHistoryDate}>{new Date(r.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}</Text>
+                        </View>
+                        <View style={styles.referralHistoryPts}>
+                          <Text style={styles.referralHistoryPtsText}>+{r.points} pt</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                {/* ── Tous les clients et leurs codes promo ── */}
+                <Text style={styles.sectionTitle}>👥 Tous les clients — codes & points</Text>
+                {clients.length === 0 ? (
+                  <Text style={styles.emptyText}>Aucun client</Text>
+                ) : (
+                  clients.map((c: any) => (
+                    <View key={c.id} style={styles.clientPromoRow}>
+                      <View style={styles.clientPromoAvatar}>
+                        <Text style={styles.clientPromoAvatarText}>{(c.prenom ?? "?").charAt(0).toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.clientPromoName}>{c.prenom} {c.nom}</Text>
+                        <Text style={styles.clientPromoPhone}>{c.telephone}</Text>
+                      </View>
+                      <View style={styles.clientPromoRight}>
+                        {c.promoCode ? (
+                          <View style={styles.clientPromoCodeBox}>
+                            <Text style={styles.clientPromoCodeText}>{c.promoCode}</Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.clientNoCode}>—</Text>
+                        )}
+                        <Text style={styles.clientPromoPoints}>{c.points ?? 0} pts</Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </>
             )}
           </>
         )}
@@ -939,4 +1119,50 @@ const styles = StyleSheet.create({
   settingInfoValue: { fontSize: 14, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
   passRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.background, borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10 },
   eyeBtn: { paddingHorizontal: 12, paddingVertical: 11 },
+
+  // ── Parrainage tab ──
+  referralStatsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 4 },
+  referralStatCard: { flex: 1, minWidth: "45%", backgroundColor: Colors.white, borderRadius: 14, padding: 14, borderLeftWidth: 4, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 4, gap: 4 },
+  referralStatValue: { fontSize: 26, fontWeight: "800", color: Colors.text, fontFamily: "Inter_700Bold" },
+  referralStatLabel: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  conversionCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 16, gap: 12, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 4 },
+  conversionTitle: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  conversionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-around" },
+  conversionItem: { alignItems: "center", gap: 3, flex: 1 },
+  conversionEmoji: { fontSize: 24 },
+  conversionVal: { fontSize: 16, fontWeight: "800", color: Colors.text, fontFamily: "Inter_700Bold", textAlign: "center" },
+  conversionLbl: { fontSize: 10, color: Colors.textLight, fontFamily: "Inter_400Regular", textAlign: "center" },
+  conversionDivider: { width: 1, height: 48, backgroundColor: Colors.border },
+  conversionFooter: { backgroundColor: Colors.background, borderRadius: 10, padding: 10 },
+  conversionFooterText: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  referrerCard: { backgroundColor: Colors.white, borderRadius: 14, padding: 14, flexDirection: "row", alignItems: "center", gap: 12, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 4 },
+  referrerRank: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.background, alignItems: "center", justifyContent: "center" },
+  referrerRankTop: { backgroundColor: "#FFF9C4" },
+  referrerRankText: { fontSize: 14, fontWeight: "700", color: Colors.textLight, fontFamily: "Inter_700Bold" },
+  referrerRankTextTop: { fontSize: 18 },
+  referrerInfo: { flex: 1, gap: 4 },
+  referrerName: { fontSize: 14, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  referrerCodeRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  referrerCode: { fontSize: 12, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold", letterSpacing: 1, backgroundColor: "#F1FDF3", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  rewardPendingBadge: { backgroundColor: "#FFF8E1", borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  rewardPendingText: { fontSize: 10, fontWeight: "700", color: "#F57F17", fontFamily: "Inter_700Bold" },
+  referrerStats: { alignItems: "flex-end", gap: 4 },
+  referrerPoints: { fontSize: 16, fontWeight: "800", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  referrerUsed: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  referralHistoryRow: { backgroundColor: Colors.white, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", gap: 10, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
+  referralHistoryDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
+  referralHistoryName: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  referralHistoryDate: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 1 },
+  referralHistoryPts: { backgroundColor: Colors.primaryLighter, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  referralHistoryPtsText: { fontSize: 12, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
+  clientPromoRow: { backgroundColor: Colors.white, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", gap: 10, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
+  clientPromoAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primaryLighter, alignItems: "center", justifyContent: "center" },
+  clientPromoAvatarText: { fontSize: 16, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
+  clientPromoName: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  clientPromoPhone: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  clientPromoRight: { alignItems: "flex-end", gap: 4 },
+  clientPromoCodeBox: { backgroundColor: "#F1FDF3", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  clientPromoCodeText: { fontSize: 11, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold", letterSpacing: 1 },
+  clientNoCode: { fontSize: 11, color: Colors.border, fontFamily: "Inter_400Regular" },
+  clientPromoPoints: { fontSize: 12, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
 });

@@ -10,6 +10,9 @@ export interface User {
   telephone: string;
   adresse: string;
   role: "client" | "livreur" | "admin" | "sous_admin";
+  promoCode?: string | null;
+  points?: number;
+  rewardsUsed?: number;
 }
 
 interface AuthContextType {
