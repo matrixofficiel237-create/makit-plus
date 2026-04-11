@@ -60,21 +60,28 @@ export default function ProfileScreen() {
   const completed = orders.filter((o) => o.statut === "livre").length;
   const active = orders.filter((o) => o.statut !== "livre").length;
 
-  // Referral state
+  // Referral state — always shown, never gated on null
   const [referral, setReferral] = useState<{
     promoCode: string | null;
     points: number;
     availableRewards: number;
     history: any[];
-  } | null>(null);
+  }>({ promoCode: null, points: 0, availableRewards: 0, history: [] });
+  const [referralLoading, setReferralLoading] = useState(true);
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [generateError, setGenerateError] = useState("");
 
   const loadReferral = useCallback(async () => {
     if (!user) return;
+    setReferralLoading(true);
     try {
       const data = await api.referral.get(user.id);
       setReferral(data);
-    } catch {}
+    } catch {
+      // Keep the default state — section still shows with "generate" button
+    } finally {
+      setReferralLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { loadReferral(); }, [loadReferral]);
@@ -82,11 +89,14 @@ export default function ProfileScreen() {
   async function handleGenerateCode() {
     if (!user) return;
     setGeneratingCode(true);
+    setGenerateError("");
     try {
       const { promoCode } = await api.referral.generate(user.id);
-      setReferral(prev => prev ? { ...prev, promoCode } : { promoCode, points: 0, availableRewards: 0, history: [] });
+      setReferral(prev => ({ ...prev, promoCode }));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {} finally {
+    } catch {
+      setGenerateError("Erreur réseau, réessayez.");
+    } finally {
       setGeneratingCode(false);
     }
   }
@@ -182,93 +192,113 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ─── Parrainage section ─── */}
-        {referral !== null && (
-          <View style={styles.section}>
+        {/* ─── Parrainage section — always shown for clients ─── */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>🎁 Parrainage & Récompenses</Text>
-
-            {/* Points card */}
-            <View style={styles.pointsCard}>
-              <View style={styles.pointsTop}>
-                <View>
-                  <Text style={styles.pointsLabel}>Mes points</Text>
-                  <Text style={styles.pointsValue}>{referral.points} <Text style={styles.pointsSub}>/ {Math.ceil((referral.points + 1) / 10) * 10} pour la prochaine récompense</Text></Text>
-                </View>
-                {referral.availableRewards > 0 && (
-                  <View style={styles.rewardBadge}>
-                    <Text style={styles.rewardBadgeText}>🏆 {referral.availableRewards} récompense{referral.availableRewards > 1 ? "s" : ""}</Text>
-                  </View>
-                )}
-              </View>
-              {/* Progress bar */}
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${Math.min(100, (referral.points % 10) * 10)}%` as any }]} />
-              </View>
-              <Text style={styles.pointsHint}>10 points = une course offerte (3 500 FCFA)</Text>
-            </View>
-
-            {/* Rewards available */}
-            {referral.availableRewards > 0 && (
-              <View style={styles.rewardCard}>
-                <Text style={{ fontSize: 32 }}>🏆</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rewardTitle}>Récompense disponible !</Text>
-                  <Text style={styles.rewardDesc}>Vous avez {referral.availableRewards} course{referral.availableRewards > 1 ? "s" : ""} gratuite{referral.availableRewards > 1 ? "s" : ""} d'une valeur de {referral.availableRewards * 3500} FCFA</Text>
-                  <Text style={styles.rewardNote}>Contactez le support pour utiliser votre récompense.</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Promo code card */}
-            {referral.promoCode ? (
-              <View style={styles.promoCard}>
-                <View style={styles.promoCardHeader}>
-                  <Text style={styles.promoCardTitle}>Mon code promo</Text>
-                  <Text style={styles.promoCardHint}>Partagez ce code à vos amis</Text>
-                </View>
-                <View style={styles.promoCodeBox}>
-                  <Text style={styles.promoCodeText}>{referral.promoCode}</Text>
-                </View>
-                <TouchableOpacity style={styles.shareBtn} onPress={handleShareCode} activeOpacity={0.8}>
-                  <Feather name="share-2" size={18} color={Colors.white} />
-                  <Text style={styles.shareBtnText}>Partager mon code</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.promoCard}>
-                <Text style={styles.promoCardTitle}>Mon code promo</Text>
-                <Text style={styles.promoCardHint}>Générez votre code pour commencer à parrainer</Text>
-                <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateCode} disabled={generatingCode} activeOpacity={0.8}>
-                  {generatingCode ? <ActivityIndicator color={Colors.white} size="small" /> : (
-                    <>
-                      <Feather name="gift" size={18} color={Colors.white} />
-                      <Text style={styles.generateBtnText}>Générer mon code promo</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* History */}
-            {referral.history.length > 0 && (
-              <View style={styles.historyCard}>
-                <Text style={styles.historyTitle}>Historique des filleuls</Text>
-                {referral.history.slice(0, 5).map((h: any, i: number) => (
-                  <View key={i} style={styles.historyRow}>
-                    <View style={styles.historyDot} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.historyName}>{h.referredUserName}</Text>
-                      <Text style={styles.historyDate}>{new Date(h.createdAt).toLocaleDateString("fr-FR")}</Text>
-                    </View>
-                    <View style={styles.historyPoints}>
-                      <Text style={styles.historyPointsText}>+{h.points} pt</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
+            {!referralLoading && (
+              <TouchableOpacity onPress={loadReferral}>
+                <Feather name="refresh-cw" size={14} color={Colors.textLight} />
+              </TouchableOpacity>
             )}
           </View>
-        )}
+
+          {referralLoading ? (
+            <View style={styles.referralLoader}>
+              <ActivityIndicator color={Colors.primary} />
+              <Text style={styles.referralLoaderText}>Chargement...</Text>
+            </View>
+          ) : (
+            <>
+              {/* Points card */}
+              <View style={styles.pointsCard}>
+                <View style={styles.pointsTop}>
+                  <View>
+                    <Text style={styles.pointsLabel}>Mes points</Text>
+                    <Text style={styles.pointsValue}>{referral.points} <Text style={styles.pointsSub}>/ {Math.ceil(Math.max(referral.points + 1, 10) / 10) * 10} pour la prochaine récompense</Text></Text>
+                  </View>
+                  {referral.availableRewards > 0 && (
+                    <View style={styles.rewardBadge}>
+                      <Text style={styles.rewardBadgeText}>🏆 {referral.availableRewards} récompense{referral.availableRewards > 1 ? "s" : ""}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${Math.min(100, (referral.points % 10) * 10)}%` as any }]} />
+                </View>
+                <Text style={styles.pointsHint}>10 points = une course offerte (3 500 FCFA)</Text>
+              </View>
+
+              {/* Rewards available */}
+              {referral.availableRewards > 0 && (
+                <View style={styles.rewardCard}>
+                  <Text style={{ fontSize: 32 }}>🏆</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rewardTitle}>Récompense disponible !</Text>
+                    <Text style={styles.rewardDesc}>Vous avez {referral.availableRewards} course{referral.availableRewards > 1 ? "s" : ""} gratuite{referral.availableRewards > 1 ? "s" : ""} d'une valeur de {referral.availableRewards * 3500} FCFA</Text>
+                    <Text style={styles.rewardNote}>Contactez le support pour utiliser votre récompense.</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Promo code card */}
+              {referral.promoCode ? (
+                <View style={styles.promoCard}>
+                  <View style={styles.promoCardHeader}>
+                    <Text style={styles.promoCardTitle}>Mon code promo</Text>
+                    <Text style={styles.promoCardHint}>Partagez ce code à vos amis lors de leur inscription</Text>
+                  </View>
+                  <View style={styles.promoCodeBox}>
+                    <Text style={styles.promoCodeText}>{referral.promoCode}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.shareBtn} onPress={handleShareCode} activeOpacity={0.8}>
+                    <Feather name="share-2" size={18} color={Colors.white} />
+                    <Text style={styles.shareBtnText}>Partager mon code</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.promoCard}>
+                  <View style={styles.promoCardHeader}>
+                    <Text style={styles.promoCardTitle}>Mon code promo</Text>
+                    <Text style={styles.promoCardHint}>Générez votre code et partagez-le — chaque ami inscrit vous rapporte 1 point</Text>
+                  </View>
+                  {generateError ? (
+                    <View style={styles.generateErrBox}>
+                      <Text style={styles.generateErrText}>{generateError}</Text>
+                    </View>
+                  ) : null}
+                  <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateCode} disabled={generatingCode} activeOpacity={0.8}>
+                    {generatingCode ? <ActivityIndicator color={Colors.white} size="small" /> : (
+                      <>
+                        <Feather name="gift" size={18} color={Colors.white} />
+                        <Text style={styles.generateBtnText}>Générer mon code promo</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* History */}
+              {referral.history.length > 0 && (
+                <View style={styles.historyCard}>
+                  <Text style={styles.historyTitle}>Historique des filleuls ({referral.history.length})</Text>
+                  {referral.history.slice(0, 5).map((h: any, i: number) => (
+                    <View key={i} style={styles.historyRow}>
+                      <View style={styles.historyDot} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.historyName}>{h.referredUserName}</Text>
+                        <Text style={styles.historyDate}>{new Date(h.createdAt).toLocaleDateString("fr-FR")}</Text>
+                      </View>
+                      <View style={styles.historyPoints}>
+                        <Text style={styles.historyPointsText}>+{h.points} pt</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </View>
 
         {/* Infos section */}
         <View style={styles.section}>
@@ -498,6 +528,11 @@ const styles = StyleSheet.create({
   successBox: { backgroundColor: Colors.primaryLighter, borderLeftWidth: 3, borderLeftColor: Colors.primary, padding: 10, borderRadius: 10 },
   successText: { color: Colors.primaryDark, fontSize: 13, fontFamily: "Inter_400Regular" },
   // ── Referral styles ──
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  referralLoader: { flexDirection: "row", alignItems: "center", gap: 10, padding: 16, backgroundColor: Colors.white, borderRadius: 14 },
+  referralLoaderText: { fontSize: 13, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  generateErrBox: { backgroundColor: "#FFEBEE", borderRadius: 10, padding: 10 },
+  generateErrText: { fontSize: 13, color: Colors.red, fontFamily: "Inter_400Regular" },
   pointsCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 16, gap: 10, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
   pointsTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
   pointsLabel: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
