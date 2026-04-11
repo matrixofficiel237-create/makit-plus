@@ -53,6 +53,7 @@ export async function register(payload: {
   telephone: string;
   adresse: string;
   motDePasse: string;
+  codeParrain?: string;
 }): Promise<User> {
   const data = await request<{ user: User }>("/auth/register", {
     method: "POST",

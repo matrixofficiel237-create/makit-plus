@@ -5,6 +5,7 @@ import ordersRouter from "./orders";
 import usersRouter from "./users";
 import downloadRouter from "./download";
 import statsRouter from "./stats";
+import referralRouter from "./referral";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/orders", ordersRouter);
 router.use("/users", usersRouter);
 router.use(downloadRouter);
 router.use("/stats", statsRouter);
+router.use("/referral", referralRouter);
 
 export default router;

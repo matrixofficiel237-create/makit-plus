@@ -1,4 +1,4 @@
-import { db, usersTable, ordersTable, statsTable } from "@workspace/db";
+import { db, usersTable, ordersTable, statsTable, referralHistoryTable } from "@workspace/db";
 import { eq, desc, inArray, sql } from "drizzle-orm";
 
 export type StoredUser = typeof usersTable.$inferSelect;
@@ -124,4 +124,56 @@ export async function incrementVisitors(): Promise<number> {
 export async function getVisitors(): Promise<number> {
   const row = await db.select().from(statsTable).where(eq(statsTable.key, "visitors"));
   return row[0]?.value ?? 0;
+}
+
+// ── Referral / Promo ──
+
+export function generatePromoCode(prenom: string): string {
+  const base = prenom.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 6).padEnd(3, "X");
+  const suffix = Math.floor(Math.random() * 900 + 100).toString();
+  return base + suffix;
+}
+
+export async function findUserByPromoCode(code: string): Promise<StoredUser | undefined> {
+  const rows = await db.select().from(usersTable).where(eq(usersTable.promoCode, code.toUpperCase())).limit(1);
+  return rows[0];
+}
+
+export async function setPromoCode(userId: string, code: string): Promise<StoredUser | null> {
+  const rows = await db.update(usersTable).set({ promoCode: code.toUpperCase() }).where(eq(usersTable.id, userId)).returning();
+  return rows[0] ?? null;
+}
+
+export async function addPointsToUser(userId: string, delta: number): Promise<number> {
+  const rows = await db.update(usersTable)
+    .set({ points: sql`${usersTable.points} + ${delta}` })
+    .where(eq(usersTable.id, userId))
+    .returning({ points: usersTable.points });
+  return rows[0]?.points ?? 0;
+}
+
+export async function createReferralEvent(data: {
+  id: string;
+  referrerId: string;
+  referredUserId: string;
+  referredUserName: string;
+}): Promise<void> {
+  await db.insert(referralHistoryTable).values({ ...data, points: 1 });
+}
+
+export async function getReferralHistory(referrerId: string) {
+  return db.select().from(referralHistoryTable).where(eq(referralHistoryTable.referrerId, referrerId)).orderBy(desc(referralHistoryTable.createdAt));
+}
+
+export async function getAllReferrals() {
+  return db.select().from(referralHistoryTable).orderBy(desc(referralHistoryTable.createdAt));
+}
+
+export async function useReward(userId: string): Promise<{ ok: boolean; availableRewards: number }> {
+  const user = await findUserById(userId);
+  if (!user) return { ok: false, availableRewards: 0 };
+  const available = Math.floor(user.points / 10) - user.rewardsUsed;
+  if (available <= 0) return { ok: false, availableRewards: 0 };
+  await db.update(usersTable).set({ rewardsUsed: sql`${usersTable.rewardsUsed} + 1` }).where(eq(usersTable.id, userId));
+  return { ok: true, availableRewards: available - 1 };
 }

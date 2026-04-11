@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Platform, TextInput, ActivityIndicator,
+  Platform, TextInput, ActivityIndicator, Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
 import * as Haptics from "expo-haptics";
 import ConfirmModal from "@/components/ConfirmModal";
+import { api } from "@/utils/api";
 
 interface MenuItemProps {
   icon: string;
@@ -58,6 +59,47 @@ export default function ProfileScreen() {
   const orders = user ? getOrdersByUser(user.id) : [];
   const completed = orders.filter((o) => o.statut === "livre").length;
   const active = orders.filter((o) => o.statut !== "livre").length;
+
+  // Referral state
+  const [referral, setReferral] = useState<{
+    promoCode: string | null;
+    points: number;
+    availableRewards: number;
+    history: any[];
+  } | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
+
+  const loadReferral = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await api.referral.get(user.id);
+      setReferral(data);
+    } catch {}
+  }, [user]);
+
+  useEffect(() => { loadReferral(); }, [loadReferral]);
+
+  async function handleGenerateCode() {
+    if (!user) return;
+    setGeneratingCode(true);
+    try {
+      const { promoCode } = await api.referral.generate(user.id);
+      setReferral(prev => prev ? { ...prev, promoCode } : { promoCode, points: 0, availableRewards: 0, history: [] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {} finally {
+      setGeneratingCode(false);
+    }
+  }
+
+  async function handleShareCode() {
+    if (!referral?.promoCode) return;
+    try {
+      await Share.share({
+        message: `🛍️ Rejoins-moi sur Makit+ ! C'est l'app qui livre vos courses du marché à domicile.\n\nUtilise mon code parrain lors de ton inscription pour m'offrir un point :\n\n👉 ${referral.promoCode}\n\nTélécharge l'app : https://market-fresh-delivery--makit4079.replit.app`,
+        title: "Invite un ami sur Makit+",
+      });
+    } catch {}
+  }
 
   async function doLogout() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -139,6 +181,94 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {/* ─── Parrainage section ─── */}
+        {referral !== null && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🎁 Parrainage & Récompenses</Text>
+
+            {/* Points card */}
+            <View style={styles.pointsCard}>
+              <View style={styles.pointsTop}>
+                <View>
+                  <Text style={styles.pointsLabel}>Mes points</Text>
+                  <Text style={styles.pointsValue}>{referral.points} <Text style={styles.pointsSub}>/ {Math.ceil((referral.points + 1) / 10) * 10} pour la prochaine récompense</Text></Text>
+                </View>
+                {referral.availableRewards > 0 && (
+                  <View style={styles.rewardBadge}>
+                    <Text style={styles.rewardBadgeText}>🏆 {referral.availableRewards} récompense{referral.availableRewards > 1 ? "s" : ""}</Text>
+                  </View>
+                )}
+              </View>
+              {/* Progress bar */}
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${Math.min(100, (referral.points % 10) * 10)}%` as any }]} />
+              </View>
+              <Text style={styles.pointsHint}>10 points = une course offerte (3 500 FCFA)</Text>
+            </View>
+
+            {/* Rewards available */}
+            {referral.availableRewards > 0 && (
+              <View style={styles.rewardCard}>
+                <Text style={{ fontSize: 32 }}>🏆</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rewardTitle}>Récompense disponible !</Text>
+                  <Text style={styles.rewardDesc}>Vous avez {referral.availableRewards} course{referral.availableRewards > 1 ? "s" : ""} gratuite{referral.availableRewards > 1 ? "s" : ""} d'une valeur de {referral.availableRewards * 3500} FCFA</Text>
+                  <Text style={styles.rewardNote}>Contactez le support pour utiliser votre récompense.</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Promo code card */}
+            {referral.promoCode ? (
+              <View style={styles.promoCard}>
+                <View style={styles.promoCardHeader}>
+                  <Text style={styles.promoCardTitle}>Mon code promo</Text>
+                  <Text style={styles.promoCardHint}>Partagez ce code à vos amis</Text>
+                </View>
+                <View style={styles.promoCodeBox}>
+                  <Text style={styles.promoCodeText}>{referral.promoCode}</Text>
+                </View>
+                <TouchableOpacity style={styles.shareBtn} onPress={handleShareCode} activeOpacity={0.8}>
+                  <Feather name="share-2" size={18} color={Colors.white} />
+                  <Text style={styles.shareBtnText}>Partager mon code</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.promoCard}>
+                <Text style={styles.promoCardTitle}>Mon code promo</Text>
+                <Text style={styles.promoCardHint}>Générez votre code pour commencer à parrainer</Text>
+                <TouchableOpacity style={styles.generateBtn} onPress={handleGenerateCode} disabled={generatingCode} activeOpacity={0.8}>
+                  {generatingCode ? <ActivityIndicator color={Colors.white} size="small" /> : (
+                    <>
+                      <Feather name="gift" size={18} color={Colors.white} />
+                      <Text style={styles.generateBtnText}>Générer mon code promo</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* History */}
+            {referral.history.length > 0 && (
+              <View style={styles.historyCard}>
+                <Text style={styles.historyTitle}>Historique des filleuls</Text>
+                {referral.history.slice(0, 5).map((h: any, i: number) => (
+                  <View key={i} style={styles.historyRow}>
+                    <View style={styles.historyDot} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.historyName}>{h.referredUserName}</Text>
+                      <Text style={styles.historyDate}>{new Date(h.createdAt).toLocaleDateString("fr-FR")}</Text>
+                    </View>
+                    <View style={styles.historyPoints}>
+                      <Text style={styles.historyPointsText}>+{h.points} pt</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Infos section */}
         <View style={styles.section}>
@@ -367,4 +497,37 @@ const styles = StyleSheet.create({
   errText: { color: Colors.red, fontSize: 13, fontFamily: "Inter_400Regular" },
   successBox: { backgroundColor: Colors.primaryLighter, borderLeftWidth: 3, borderLeftColor: Colors.primary, padding: 10, borderRadius: 10 },
   successText: { color: Colors.primaryDark, fontSize: 13, fontFamily: "Inter_400Regular" },
+  // ── Referral styles ──
+  pointsCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 16, gap: 10, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  pointsTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  pointsLabel: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  pointsValue: { fontSize: 22, fontWeight: "800", color: Colors.text, fontFamily: "Inter_700Bold" },
+  pointsSub: { fontSize: 13, fontWeight: "400", color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  progressBar: { height: 8, backgroundColor: Colors.background, borderRadius: 4, overflow: "hidden" },
+  progressFill: { height: "100%", backgroundColor: Colors.primary, borderRadius: 4 },
+  pointsHint: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  rewardBadge: { backgroundColor: "#FFF8E1", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  rewardBadgeText: { fontSize: 12, fontWeight: "700", color: "#F57F17", fontFamily: "Inter_700Bold" },
+  rewardCard: { backgroundColor: "#FFFDE7", borderWidth: 1.5, borderColor: "#FDD835", borderRadius: 14, padding: 14, flexDirection: "row", gap: 12, alignItems: "center" },
+  rewardTitle: { fontSize: 15, fontWeight: "700", color: "#5D4037", fontFamily: "Inter_700Bold" },
+  rewardDesc: { fontSize: 13, color: "#795548", fontFamily: "Inter_400Regular", marginTop: 2 },
+  rewardNote: { fontSize: 11, color: "#8D6E63", fontFamily: "Inter_400Regular", marginTop: 4, fontStyle: "italic" },
+  promoCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 16, gap: 12, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  promoCardHeader: { gap: 2 },
+  promoCardTitle: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  promoCardHint: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  promoCodeBox: { backgroundColor: "#F1FDF3", borderRadius: 12, paddingVertical: 16, paddingHorizontal: 20, alignItems: "center", borderWidth: 1.5, borderColor: Colors.primary, borderStyle: "dashed" },
+  promoCodeText: { fontSize: 28, fontWeight: "900", color: Colors.primaryDark, fontFamily: "Inter_700Bold", letterSpacing: 4 },
+  shareBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  shareBtnText: { color: Colors.white, fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  generateBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  generateBtnText: { color: Colors.white, fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  historyCard: { backgroundColor: Colors.white, borderRadius: 14, padding: 14, gap: 8, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  historyTitle: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  historyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  historyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+  historyName: { fontSize: 13, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
+  historyDate: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  historyPoints: { backgroundColor: Colors.primaryLighter, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  historyPointsText: { fontSize: 12, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
 });

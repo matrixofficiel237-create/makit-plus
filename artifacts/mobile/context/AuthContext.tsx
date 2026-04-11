@@ -31,6 +31,7 @@ interface RegisterData {
   telephone: string;
   adresse: string;
   motDePasse: string;
+  codeParrain?: string;
 }
 
 export interface ManagedUserData {

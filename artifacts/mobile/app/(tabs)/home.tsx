@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  Animated,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +17,78 @@ import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
 import { useCart } from "@/context/CartContext";
 import * as Haptics from "expo-haptics";
+
+const PROMO_MESSAGES = [
+  { emoji: "🎁", text: "Parrainez vos amis et gagnez des points !", sub: "10 points = livraison gratuite" },
+  { emoji: "🚀", text: "Livraison rapide à domicile", sub: "Frais de livraison : 750 FCFA seulement" },
+  { emoji: "🥬", text: "Produits frais du marché", sub: "Légumes, viandes, poissons et plus" },
+  { emoji: "📱", text: "Payez facilement par mobile money", sub: "Orange Money & MTN MoMo acceptés" },
+  { emoji: "🏆", text: "Cumulez des récompenses !", sub: "Partagez votre code dans Mon profil" },
+];
+
+function PromoBanner() {
+  const [idx, setIdx] = useState(0);
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const cycle = setInterval(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 350, useNativeDriver: false }),
+        Animated.timing(translateY, { toValue: -8, duration: 350, useNativeDriver: false }),
+      ]).start(() => {
+        setIdx(i => (i + 1) % PROMO_MESSAGES.length);
+        translateY.setValue(8);
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: false }),
+          Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: false }),
+        ]).start();
+      });
+    }, 3500);
+    return () => clearInterval(cycle);
+  }, []);
+
+  const msg = PROMO_MESSAGES[idx];
+  return (
+    <View style={promoBannerStyles.container}>
+      <Animated.View style={[promoBannerStyles.inner, { opacity, transform: [{ translateY }] }]}>
+        <Text style={promoBannerStyles.emoji}>{msg.emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={promoBannerStyles.text}>{msg.text}</Text>
+          <Text style={promoBannerStyles.sub}>{msg.sub}</Text>
+        </View>
+      </Animated.View>
+      {/* dots */}
+      <View style={promoBannerStyles.dots}>
+        {PROMO_MESSAGES.map((_, i) => (
+          <View key={i} style={[promoBannerStyles.dot, i === idx && promoBannerStyles.dotActive]} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const promoBannerStyles = StyleSheet.create({
+  container: {
+    backgroundColor: "#E8F5E9",
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    gap: 10,
+    overflow: "hidden",
+  },
+  inner: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 38 },
+  emoji: { fontSize: 26 },
+  text: { fontSize: 13, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
+  sub: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 1 },
+  dots: { flexDirection: "row", gap: 5, justifyContent: "center" },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.border },
+  dotActive: { backgroundColor: Colors.primary, width: 14 },
+});
 
 const QUICK_CATEGORIES = [
   { id: "legumes", nom: "Légumes", emoji: "🥬" },
@@ -91,6 +164,9 @@ export default function HomeScreen() {
         </View>
         <Text style={styles.heroEmoji}>🛒</Text>
       </View>
+
+      {/* Animated promo banner */}
+      <PromoBanner />
 
       {/* Quick Actions */}
       <Text style={styles.sectionTitle}>Que souhaitez-vous faire ?</Text>

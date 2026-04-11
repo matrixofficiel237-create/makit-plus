@@ -10,13 +10,13 @@ const GREEN_DARK = "#388E3C";
 export default function Register() {
   const [, navigate] = useLocation();
   const { setUser } = useAuth();
-  const [form, setForm] = useState({ nom: "", prenom: "", telephone: "", adresse: "", motDePasse: "" });
+  const [form, setForm] = useState({ nom: "", prenom: "", telephone: "", adresse: "", motDePasse: "", codeParrain: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function handleChange(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value }));
+      setForm(f => ({ ...f, [key]: key === "codeParrain" ? e.target.value.toUpperCase() : e.target.value }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -24,7 +24,15 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      const user = await register(form);
+      const payload: Parameters<typeof register>[0] = {
+        nom: form.nom,
+        prenom: form.prenom,
+        telephone: form.telephone,
+        adresse: form.adresse,
+        motDePasse: form.motDePasse,
+      };
+      if (form.codeParrain.trim()) payload.codeParrain = form.codeParrain.trim();
+      const user = await register(payload);
       setUser(user);
       navigate("/tableau-de-bord");
     } catch (err: unknown) {
@@ -40,12 +48,12 @@ export default function Register() {
     boxSizing: "border-box", transition: "border-color 0.2s",
   };
 
-  const fields: { key: keyof typeof form; label: string; placeholder: string; type?: string }[] = [
-    { key: "nom", label: "Nom", placeholder: "Ex: Dupont" },
-    { key: "prenom", label: "Prénom", placeholder: "Ex: Jean" },
-    { key: "telephone", label: "Numéro de téléphone", placeholder: "Ex: 691234567", type: "tel" },
-    { key: "adresse", label: "Adresse / Quartier", placeholder: "Ex: Bastos, Rue des Manguiers" },
-    { key: "motDePasse", label: "Mot de passe", placeholder: "••••••••", type: "password" },
+  const fields: { key: keyof typeof form; label: string; placeholder: string; type?: string; required?: boolean }[] = [
+    { key: "nom", label: "Nom", placeholder: "Ex: Dupont", required: true },
+    { key: "prenom", label: "Prénom", placeholder: "Ex: Jean", required: true },
+    { key: "telephone", label: "Numéro de téléphone", placeholder: "Ex: 691234567", type: "tel", required: true },
+    { key: "adresse", label: "Adresse / Quartier", placeholder: "Ex: Bastos, Rue des Manguiers", required: true },
+    { key: "motDePasse", label: "Mot de passe", placeholder: "••••••••", type: "password", required: true },
   ];
 
   return (
@@ -85,13 +93,41 @@ export default function Register() {
                 value={form[f.key]}
                 onChange={handleChange(f.key)}
                 placeholder={f.placeholder}
-                required
+                required={f.required}
                 style={inputStyle}
                 onFocus={e => (e.target.style.borderColor = GREEN)}
                 onBlur={e => (e.target.style.borderColor = "#eee")}
               />
             </div>
           ))}
+
+          {/* Code parrain optionnel */}
+          <div style={{
+            background: "#F1FDF3", border: `1.5px solid ${GREEN}`,
+            borderRadius: 14, padding: "14px 16px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 20 }}>🎁</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: GREEN_DARK }}>Vous avez un code parrain ?</span>
+            </div>
+            <input
+              type="text"
+              value={form.codeParrain}
+              onChange={handleChange("codeParrain")}
+              placeholder="Ex: HENRY123 (optionnel)"
+              maxLength={12}
+              style={{
+                ...inputStyle,
+                fontWeight: 700, letterSpacing: 2, textTransform: "uppercase",
+                borderColor: form.codeParrain ? GREEN : "#eee",
+              }}
+              onFocus={e => (e.target.style.borderColor = GREEN)}
+              onBlur={e => (e.target.style.borderColor = form.codeParrain ? GREEN : "#eee")}
+            />
+            <p style={{ fontSize: 11, color: "#888", marginTop: 6, marginBottom: 0 }}>
+              Entrez le code d'un ami pour lui offrir 1 point de parrainage
+            </p>
+          </div>
 
           <button
             type="submit"

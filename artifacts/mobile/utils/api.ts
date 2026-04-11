@@ -30,7 +30,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ telephone, motDePasse }),
       }),
-    register: (body: { nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string }) =>
+    register: (body: { nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string; codeParrain?: string }) =>
       apiFetch<{ user: any }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(body),
@@ -69,5 +69,15 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ token }),
       }),
+  },
+  referral: {
+    get: (userId: string) =>
+      apiFetch<{ promoCode: string | null; points: number; rewardsUsed: number; availableRewards: number; history: any[] }>(`/referral/${userId}`),
+    generate: (userId: string) =>
+      apiFetch<{ promoCode: string }>(`/referral/${userId}/generate`, { method: "POST" }),
+    useReward: (userId: string) =>
+      apiFetch<{ ok: boolean; availableRewards: number }>(`/referral/${userId}/use-reward`, { method: "POST" }),
+    adminStats: () =>
+      apiFetch<any>("/referral/admin/all"),
   },
 };

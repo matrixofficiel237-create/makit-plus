@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { findUserByPhone, findUserById, createUser, updateUser } from "../store";
+import { findUserByPhone, findUserById, createUser, updateUser, generatePromoCode, findUserByPromoCode, setPromoCode, addPointsToUser, createReferralEvent } from "../store";
 
 const router = Router();
 
@@ -19,8 +19,8 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/register", async (req, res) => {
-  const { nom, prenom, telephone, adresse, motDePasse } = req.body as {
-    nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string;
+  const { nom, prenom, telephone, adresse, motDePasse, codeParrain } = req.body as {
+    nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string; codeParrain?: string;
   };
   if (!nom || !prenom || !telephone || !motDePasse) {
     res.status(400).json({ error: "Missing required fields" });
@@ -31,15 +31,43 @@ router.post("/register", async (req, res) => {
     res.status(409).json({ error: "Ce numéro est déjà utilisé" });
     return;
   }
+
+  // Valider le code parrain (s'il est fourni)
+  let referrer = codeParrain ? await findUserByPromoCode(codeParrain.trim()) : undefined;
+
+  // Générer un code promo unique pour le nouvel utilisateur
+  let promoCode = generatePromoCode(prenom);
+  let attempt = 0;
+  while (attempt < 10) {
+    const taken = await findUserByPromoCode(promoCode);
+    if (!taken) break;
+    promoCode = generatePromoCode(prenom);
+    attempt++;
+  }
+
   const newUser = await createUser({
     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     nom, prenom, telephone,
     adresse: adresse || "",
     motDePasse,
     role: "client",
+    promoCode,
+    referredBy: referrer?.promoCode ?? null,
   });
+
+  // Créditer le parrain si le code était valide
+  if (referrer) {
+    await addPointsToUser(referrer.id, 1);
+    await createReferralEvent({
+      id: `ref-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      referrerId: referrer.id,
+      referredUserId: newUser.id,
+      referredUserName: `${prenom} ${nom}`,
+    });
+  }
+
   const { motDePasse: _, ...safe } = newUser;
-  res.status(201).json({ user: safe });
+  res.status(201).json({ user: safe, referrerFound: !!referrer });
 });
 
 router.post("/reset-password", async (req, res) => {
