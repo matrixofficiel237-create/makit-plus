@@ -48,7 +48,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     // Réveil du serveur de production au démarrage
-    fetch(API_BASE.replace("/api", "/health")).catch(() => {});
+    fetch(`${API_BASE}/healthz`).catch(() => {});
   }, []);
 
   useEffect(() => {
