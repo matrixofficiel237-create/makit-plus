@@ -10,6 +10,9 @@ export interface User {
   telephone: string;
   adresse: string;
   role: "client" | "livreur" | "admin" | "sous_admin";
+  promoCode?: string | null;
+  points?: number;
+  rewardsUsed?: number;
 }
 
 interface AuthContextType {
@@ -31,6 +34,7 @@ interface RegisterData {
   telephone: string;
   adresse: string;
   motDePasse: string;
+  codeParrain?: string;
 }
 
 export interface ManagedUserData {
