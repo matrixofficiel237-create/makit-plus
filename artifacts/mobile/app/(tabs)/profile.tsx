@@ -105,7 +105,7 @@ export default function ProfileScreen() {
     if (!referral?.promoCode) return;
     try {
       await Share.share({
-        message: `🛍️ Rejoins-moi sur Makit+ ! C'est l'app qui livre vos courses du marché à domicile.\n\nUtilise mon code parrain lors de ton inscription pour m'offrir un point :\n\n👉 ${referral.promoCode}\n\nTélécharge l'app : https://market-fresh-delivery--makit4079.replit.app`,
+        message: `🛍️ Rejoins-moi sur Makit+ ! C'est le service qui livre vos courses du marché à domicile.\n\nUtilise mon code parrain lors de ton inscription pour m'offrir un point :\n\n👉 ${referral.promoCode}\n\nInscris-toi ici : https://market-fresh-delivery--makit4079.replit.app/landing/`,
         title: "Invite un ami sur Makit+",
       });
     } catch {}
