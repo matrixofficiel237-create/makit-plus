@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { createOrder, type OrderItem } from "../lib/api";
+import { createOrder, type OrderItem, API_BASE } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 const GREEN = "#4CAF50";
@@ -72,17 +72,12 @@ export default function NouvelleCommande() {
     const validItems = items.filter(i => i.nom.trim() && i.prix > 0 && i.quantite > 0);
     if (validItems.length === 0) { setError("Ajoutez au moins un article valide."); return; }
     if (!quartier.trim()) { setError("Indiquez votre quartier de livraison."); return; }
+    if (!telephone.trim()) { setError("Indiquez votre numéro de téléphone pour le paiement."); return; }
 
-    // Ouvrir le composeur USSD immédiatement
-    const code = type === "momo"
-      ? `*126*4*227165*${totalFinal}%23`
-      : `%23150*46*1283376*${totalFinal}%23`;
-    window.location.href = `tel:${code}`;
-
-    // Confirmer la commande en même temps
     setLoadingMobile(type);
     try {
-      await createOrder({
+      // Créer la commande
+      const result = await createOrder({
         userId: user.id,
         items: validItems,
         adresse: { nom: nomDestinataire, telephone, quartier, details },
@@ -91,6 +86,39 @@ export default function NouvelleCommande() {
         fraisLivraison: FRAIS_LIVRAISON,
         totalFinal,
       });
+
+      // Lancer le paiement KPay
+      const kpayMethod = type === "momo" ? "momo" : "orange";
+      try {
+        const kpayRes = await fetch(`${API_BASE}/payments/initiate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telephone,
+            amount: totalFinal,
+            method: kpayMethod,
+            orderId: (result as any)?.order?.id ?? "",
+            userName: nomDestinataire,
+          }),
+        });
+        const kpayData = await kpayRes.json();
+        if (kpayData.url) {
+          window.open(kpayData.url, "_blank");
+        } else {
+          // Fallback USSD
+          const code = type === "momo"
+            ? `*126*4*227165*${totalFinal}%23`
+            : `%23150*46*1283376*${totalFinal}%23`;
+          window.location.href = `tel:${code}`;
+        }
+      } catch {
+        // Fallback USSD si KPay indisponible
+        const code = type === "momo"
+          ? `*126*4*227165*${totalFinal}%23`
+          : `%23150*46*1283376*${totalFinal}%23`;
+        window.location.href = `tel:${code}`;
+      }
+
       navigate("/tableau-de-bord");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur lors de la commande");

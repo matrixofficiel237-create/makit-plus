@@ -1,4 +1,4 @@
-const API_BASE = "https://market-fresh-delivery--makit4079.replit.app/api";
+export const API_BASE = "https://market-fresh-delivery--makit4079.replit.app/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

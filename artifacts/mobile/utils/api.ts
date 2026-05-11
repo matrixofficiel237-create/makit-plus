@@ -74,6 +74,10 @@ export const api = {
         body: JSON.stringify({ token }),
       }),
   },
+  payments: {
+    initiate: (body: { telephone: string; amount: number; method: "momo" | "orange"; orderId?: string; userName?: string }) =>
+      apiFetch<{ url: string; tid: string; refid: string }>("/payments/initiate", { method: "POST", body: JSON.stringify(body) }),
+  },
   referral: {
     get: (userId: string) =>
       apiFetch<{ promoCode: string | null; points: number; rewardsUsed: number; availableRewards: number; history: any[] }>(`/referral/${userId}`),

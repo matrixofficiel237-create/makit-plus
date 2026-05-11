@@ -18,6 +18,7 @@ import Colors from "@/constants/colors";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
+import { api } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 
 export default function CartScreen() {
@@ -88,17 +89,11 @@ export default function CartScreen() {
     }
     if (!user) { router.replace("/(auth)/login"); return; }
 
-    // Ouvrir le composeur USSD immédiatement
-    const code = type === "momo"
-      ? `*126*4*227165*${totalFinal}%23`
-      : `%23150*46*1283376*${totalFinal}%23`;
-    Linking.openURL(`tel:${code}`).catch(() => {});
-
-    // Confirmer la commande en même temps
     setPaiement(type);
     setLoading(true);
     try {
-      await createOrder({
+      // Créer la commande d'abord
+      const order = await createOrder({
         userId: user.id,
         items: [...items],
         adresse: { quartier: quartier.trim(), rue: rue.trim(), description: description.trim() },
@@ -107,6 +102,26 @@ export default function CartScreen() {
         fraisLivraison,
         totalFinal,
       });
+
+      // Lancer le paiement KPay
+      const kpayMethod = type === "momo" ? "momo" : "orange";
+      try {
+        const { url } = await api.payments.initiate({
+          telephone: user.telephone,
+          amount: totalFinal,
+          method: kpayMethod,
+          orderId: order?.id ?? "",
+          userName: `${user.prenom} ${user.nom}`,
+        });
+        if (url) await Linking.openURL(url);
+      } catch {
+        // Si KPay échoue, fallback USSD
+        const code = type === "momo"
+          ? `*126*4*227165*${totalFinal}%23`
+          : `%23150*46*1283376*${totalFinal}%23`;
+        Linking.openURL(`tel:${code}`).catch(() => {});
+      }
+
       clearCart();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setConfirmed(true);
