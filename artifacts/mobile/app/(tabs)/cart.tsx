@@ -9,7 +9,6 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -19,7 +18,6 @@ import Colors from "@/constants/colors";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
-import { api } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 
 export default function CartScreen() {
@@ -81,27 +79,26 @@ export default function CartScreen() {
 
   async function handleMobileMoneyPay(type: "orange_money" | "momo") {
     setSubmitError("");
-
-    // Validation adresse
     const newErrors = { quartier: !quartier.trim(), rue: !rue.trim() };
     setErrors(newErrors);
     if (newErrors.quartier || newErrors.rue) {
-      Alert.alert(
-        "Adresse manquante",
-        "Remplissez d'abord votre quartier et votre rue avant de payer.",
-        [{ text: "OK" }]
-      );
+      setSubmitError("Remplissez d'abord votre adresse (quartier et rue) avant de payer");
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
     if (!user) { router.replace("/(auth)/login"); return; }
 
-    const label = type === "momo" ? "MTN MoMo" : "Orange Money";
+    // Ouvrir le composeur USSD immédiatement
+    const code = type === "momo"
+      ? `*126*4*227165*${totalFinal}%23`
+      : `%23150*46*1283376*${totalFinal}%23`;
+    Linking.openURL(`tel:${code}`).catch(() => {});
+
+    // Confirmer la commande en même temps
     setPaiement(type);
     setLoading(true);
     try {
-      // 1. Créer la commande
-      const order = await createOrder({
+      await createOrder({
         userId: user.id,
         items: [...items],
         adresse: { quartier: quartier.trim(), rue: rue.trim(), description: description.trim() },
@@ -110,39 +107,11 @@ export default function CartScreen() {
         fraisLivraison,
         totalFinal,
       });
-
-      // 2. Lancer le paiement KPay (push USSD direct sur le téléphone)
-      const kpayMethod = type === "momo" ? "momo" : "orange";
-      try {
-        const kpayResult = await api.payments.initiate({
-          telephone: user.telephone,
-          amount: totalFinal,
-          method: kpayMethod,
-          orderId: order?.id ?? "",
-          userName: `${user.prenom} ${user.nom}`,
-        });
-        if (kpayResult.success) {
-          Alert.alert(
-            `✅ Demande ${label} envoyée`,
-            `Une notification de paiement a été envoyée sur votre téléphone (${user.telephone}).\n\nConfirmez en entrant votre PIN ${label} pour finaliser la commande.\n\nRéf : ${kpayResult.reference}`,
-            [{ text: "Compris" }]
-          );
-        }
-      } catch (kpayErr: any) {
-        // KPay indisponible — informer le client
-        Alert.alert(
-          `Paiement ${label}`,
-          `Votre commande est confirmée ! Le service de paiement est momentanément indisponible.\n\nContactez-nous ou réessayez depuis votre historique de commandes.`,
-          [{ text: "OK" }]
-        );
-      }
-
       clearCart();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setConfirmed(true);
-    } catch (err: any) {
-      Alert.alert("Erreur", err?.message ?? "Erreur réseau. Vérifiez votre connexion et réessayez.");
-      setSubmitError(err?.message ?? "Erreur réseau. Vérifiez votre connexion et réessayez.");
+    } catch {
+      setSubmitError("Erreur réseau. Vérifiez votre connexion et réessayez.");
     } finally {
       setLoading(false);
     }
