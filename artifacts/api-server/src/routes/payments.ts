@@ -1,8 +1,10 @@
-import { Router } from "express";
-import { updateOrder, getAllOrders } from "../store";
+import { Router, type Request, type Response } from "express";
+import { updateOrder } from "../store";
+import { createHmac } from "crypto";
 
 const router = Router();
-const KPAY_URL = "https://admin.kpay.site/api/v1/payments/init";
+
+const CAMPAY_BASE = "https://campay.net/api";
 
 function formatPhone(tel: string): string {
   let phone = tel.replace(/[\s\-().+]/g, "");
@@ -12,120 +14,129 @@ function formatPhone(tel: string): string {
   return phone;
 }
 
-/** Extrait l'orderId depuis externalId "ORDER-{id}" */
-function parseOrderId(externalId: string): string | null {
-  const match = externalId?.match(/^ORDER-(.+)$/);
+function parseOrderId(externalRef: string): string | null {
+  const match = externalRef?.match(/^ORDER-(.+)$/);
   return match ? match[1] : null;
 }
 
-// ─── POST /api/payments/initiate ───────────────────────────────────────────────
-router.post("/initiate", async (req, res) => {
-  const { telephone, amount, method, orderId, userName, userEmail } = req.body;
+function campayHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Token ${process.env.CAMPAY_TOKEN ?? ""}`,
+  };
+}
 
-  if (!telephone || !amount || !method) {
-    res.status(400).json({ error: "Données manquantes (telephone, amount, method)" });
+// ─── POST /api/payments/initiate ───────────────────────────────────────────────
+router.post("/initiate", async (req: Request, res: Response) => {
+  const { telephone, amount, method, orderId, userName } = req.body;
+
+  if (!telephone || !amount) {
+    res.status(400).json({ error: "Données manquantes (telephone, amount)" });
     return;
   }
 
-  const phoneNumber = formatPhone(String(telephone));
-  const externalId = orderId ? `ORDER-${orderId}` : `mkt_${Date.now()}`;
+  const from = formatPhone(String(telephone));
+  const externalReference = orderId ? `ORDER-${orderId}` : `mkt_${Date.now()}`;
   const label = method === "momo" ? "MTN MoMo" : "Orange Money";
 
   try {
-    const kpayRes = await fetch(KPAY_URL, {
+    const campayRes = await fetch(`${CAMPAY_BASE}/collect/`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": process.env.KPAY_API_KEY ?? "",
-        "X-Secret-Key": process.env.KPAY_SECRET_KEY ?? "",
-      },
+      headers: campayHeaders(),
       body: JSON.stringify({
-        amount: Number(amount),
-        phoneNumber,
-        externalId,
-        description: `Commande Makit+ via ${label}`,
-        customerEmail: userEmail ?? "client@makit.cm",
-        customerName: userName ?? "Client Makit+",
-        metadata: { orderId: orderId ?? "", method },
+        amount: String(Number(amount)),
+        currency: "XAF",
+        from,
+        description: `Commande Makit+ via ${label} — ${userName ?? "Client"}`,
+        external_reference: externalReference,
       }),
     });
 
-    const data = await kpayRes.json() as any;
-    req.log.info({ data, phoneNumber, amount, method }, "KPay initiate response");
+    const data = await campayRes.json() as any;
+    req.log.info({ data, from, amount, method }, "Campay collect response");
 
-    if (!kpayRes.ok) {
+    if (!campayRes.ok || data.status === "FAILED") {
       res.status(400).json({
-        error: data.message ?? data.error ?? "Paiement refusé par l'opérateur",
+        error: data.message ?? data.detail ?? "Paiement refusé par l'opérateur",
       });
       return;
     }
 
     res.json({
       success: true,
-      id: data.id ?? null,
       reference: data.reference ?? null,
-      providerReference: data.providerReference ?? null,
-      status: data.status ?? "PENDING",
-      externalId,
-      message: data.message ?? "Demande de paiement envoyée. Confirmez sur votre téléphone.",
+      operator: data.operator ?? null,
+      ussdCode: data.ussd_code ?? null,
+      externalReference,
+      message: "Demande de paiement envoyée. Confirmez sur votre téléphone.",
     });
   } catch (err) {
-    req.log.error({ err }, "KPay API error");
+    req.log.error({ err }, "Campay API error");
     res.status(500).json({ error: "Service de paiement temporairement indisponible" });
   }
 });
 
-// ─── POST /api/payments/webhook  (+ /callback pour rétrocompat) ────────────────
-async function handleWebhook(req: any, res: any) {
-  // Répondre 200 immédiatement — KPay exige une réponse dans les 5s
+// ─── GET /api/payments/status/:reference ──────────────────────────────────────
+router.get("/status/:reference", async (req: Request, res: Response) => {
+  const { reference } = req.params;
+  try {
+    const campayRes = await fetch(`${CAMPAY_BASE}/transaction/${reference}/`, {
+      headers: campayHeaders(),
+    });
+    const data = await campayRes.json() as any;
+    req.log.info({ data, reference }, "Campay status check");
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Campay status check error");
+    res.status(500).json({ error: "Impossible de vérifier le statut du paiement" });
+  }
+});
+
+// ─── POST /api/payments/webhook  (+ /callback rétrocompat) ────────────────────
+async function handleWebhook(req: Request, res: Response) {
+  // Répondre 200 immédiatement
   res.status(200).json({ received: true });
 
-  const { event, paymentId, status, amount, externalId } = req.body ?? {};
-  req.log.info({ event, paymentId, status, amount, externalId }, "KPay webhook received");
+  // Vérifier la signature Campay si présente
+  const signature = req.headers["x-campay-signature"] as string | undefined;
+  if (signature && process.env.CAMPAY_WEBHOOK_KEY) {
+    const expected = createHmac("sha256", process.env.CAMPAY_WEBHOOK_KEY)
+      .update(JSON.stringify(req.body))
+      .digest("hex");
+    if (signature !== expected) {
+      req.log.warn({ signature }, "Campay webhook signature invalide");
+      return;
+    }
+  }
+
+  const { status, reference, external_reference, amount, operator } = req.body ?? {};
+  req.log.info({ status, reference, external_reference, amount, operator }, "Campay webhook received");
 
   try {
-    switch (event) {
-      case "payment.completed": {
-        // Paiement validé → passer la commande en "achat_en_cours"
-        const orderId = parseOrderId(externalId);
-        if (orderId) {
-          const updated = await updateOrder(orderId, { statut: "achat_en_cours" });
-          req.log.info({ orderId, updated: !!updated }, "Order marked achat_en_cours after KPay payment.completed");
-        } else {
-          req.log.warn({ externalId }, "KPay payment.completed — could not parse orderId");
-        }
-        break;
+    const orderId = parseOrderId(external_reference ?? "");
+
+    if (status === "SUCCESSFUL") {
+      if (orderId) {
+        await updateOrder(orderId, { statut: "achat_en_cours" });
+        req.log.info({ orderId, reference }, "Order → achat_en_cours (Campay SUCCESSFUL)");
       }
-
-      case "payment.failed":
-      case "payment.cancelled": {
-        // Paiement échoué/annulé → remettre la commande en "en_attente"
-        const orderId = parseOrderId(externalId);
-        if (orderId) {
-          await updateOrder(orderId, { statut: "en_attente" });
-          req.log.info({ orderId, event }, "Order reset to en_attente after KPay payment failure");
-        }
-        break;
+    } else if (status === "FAILED") {
+      if (orderId) {
+        await updateOrder(orderId, { statut: "en_attente" });
+        req.log.info({ orderId, reference }, "Order → en_attente (Campay FAILED)");
       }
-
-      case "withdrawal.completed":
-      case "withdrawal.failed":
-        // Événements de retrait — aucune action sur les commandes
-        req.log.info({ event, paymentId }, "KPay withdrawal event received");
-        break;
-
-      default:
-        req.log.info({ event }, "KPay unknown event — ignored");
+    } else {
+      req.log.info({ status, reference }, "Campay webhook — statut inconnu, ignoré");
     }
   } catch (err) {
-    req.log.error({ err, event, externalId }, "Error processing KPay webhook");
+    req.log.error({ err, reference }, "Erreur traitement webhook Campay");
   }
 }
 
 router.post("/webhook", handleWebhook);
 router.post("/callback", handleWebhook);
 
-// ─── GET /api/payments/callback — redirection navigateur après paiement ────────
+// ─── GET /api/payments/callback — redirection navigateur ──────────────────────
 router.get("/callback", (_req, res) => {
   res.redirect("https://market-fresh-delivery--makit4079.replit.app/landing/");
 });
