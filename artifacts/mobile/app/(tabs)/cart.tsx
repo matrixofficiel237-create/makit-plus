@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -80,19 +81,26 @@ export default function CartScreen() {
 
   async function handleMobileMoneyPay(type: "orange_money" | "momo") {
     setSubmitError("");
+
+    // Validation adresse
     const newErrors = { quartier: !quartier.trim(), rue: !rue.trim() };
     setErrors(newErrors);
     if (newErrors.quartier || newErrors.rue) {
-      setSubmitError("Remplissez d'abord votre adresse (quartier et rue) avant de payer");
+      Alert.alert(
+        "Adresse manquante",
+        "Remplissez d'abord votre quartier et votre rue avant de payer.",
+        [{ text: "OK" }]
+      );
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
     if (!user) { router.replace("/(auth)/login"); return; }
 
+    const label = type === "momo" ? "MTN MoMo" : "Orange Money";
     setPaiement(type);
     setLoading(true);
     try {
-      // Créer la commande d'abord
+      // 1. Créer la commande
       const order = await createOrder({
         userId: user.id,
         items: [...items],
@@ -103,8 +111,9 @@ export default function CartScreen() {
         totalFinal,
       });
 
-      // Lancer le paiement KPay
+      // 2. Lancer le paiement KPay
       const kpayMethod = type === "momo" ? "momo" : "orange";
+      let paymentOpened = false;
       try {
         const { url } = await api.payments.initiate({
           telephone: user.telephone,
@@ -113,20 +122,37 @@ export default function CartScreen() {
           orderId: order?.id ?? "",
           userName: `${user.prenom} ${user.nom}`,
         });
-        if (url) await Linking.openURL(url);
-      } catch {
-        // Si KPay échoue, fallback USSD
+        if (url) {
+          const supported = await Linking.canOpenURL(url);
+          if (supported) {
+            await Linking.openURL(url);
+            paymentOpened = true;
+          }
+        }
+      } catch (kpayErr: any) {
+        // KPay indisponible → fallback USSD
         const code = type === "momo"
           ? `*126*4*227165*${totalFinal}%23`
           : `%23150*46*1283376*${totalFinal}%23`;
-        Linking.openURL(`tel:${code}`).catch(() => {});
+        const ussdSupported = await Linking.canOpenURL(`tel:${code}`).catch(() => false);
+        if (ussdSupported) {
+          Linking.openURL(`tel:${code}`).catch(() => {});
+          paymentOpened = true;
+        } else {
+          Alert.alert(
+            `Paiement ${label}`,
+            `Votre commande est confirmée ! Composez maintenant le code :\n\n${type === "momo" ? "*126*4*227165*" : "#150*46*1283376*"}${totalFinal}#\n\nsur votre téléphone pour finaliser le paiement.`,
+            [{ text: "Compris" }]
+          );
+        }
       }
 
       clearCart();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setConfirmed(true);
-    } catch {
-      setSubmitError("Erreur réseau. Vérifiez votre connexion et réessayez.");
+    } catch (err: any) {
+      Alert.alert("Erreur", err?.message ?? "Erreur réseau. Vérifiez votre connexion et réessayez.");
+      setSubmitError(err?.message ?? "Erreur réseau. Vérifiez votre connexion et réessayez.");
     } finally {
       setLoading(false);
     }
