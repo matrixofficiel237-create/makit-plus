@@ -29,7 +29,7 @@ router.post("/initiate", async (req, res) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "secret_key": process.env.KPAY_API_KEY ?? "",
+        "Authorization": `Bearer ${process.env.KPAY_API_KEY ?? ""}`,
       },
       body: JSON.stringify({
         action: "pay",
@@ -42,7 +42,7 @@ router.post("/initiate", async (req, res) => {
         cname: userName ?? "Client Makit+",
         cnumber: msisdn,
         pmethod,
-        retailerid: "01",
+        pin: process.env.KPAY_SECRET_KEY ?? "",
         returl: "https://market-fresh-delivery--makit4079.replit.app/api/payments/callback",
         redirecturl: "https://market-fresh-delivery--makit4079.replit.app/landing/",
       }),
