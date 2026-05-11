@@ -122,14 +122,16 @@ export default function CartScreen() {
           userName: `${user.prenom} ${user.nom}`,
         });
         if (kpayResult.success) {
+          const ussdLine = kpayResult.ussdCode
+            ? `\n\nCode USSD de secours : ${kpayResult.ussdCode}`
+            : "";
           Alert.alert(
             `✅ Demande ${label} envoyée`,
-            `Une notification de paiement a été envoyée sur votre téléphone (${user.telephone}).\n\nConfirmez en entrant votre PIN ${label} pour finaliser la commande.\n\nRéf : ${kpayResult.reference}`,
+            `Une notification de paiement a été envoyée sur votre téléphone (${user.telephone}).\n\nConfirmez en entrant votre PIN ${label} pour finaliser.${ussdLine}\n\nRéf : ${kpayResult.reference}`,
             [{ text: "Compris" }]
           );
         }
       } catch (kpayErr: any) {
-        // KPay indisponible — informer le client
         Alert.alert(
           `Paiement ${label}`,
           `Votre commande est confirmée ! Le service de paiement est momentanément indisponible.\n\nContactez-nous ou réessayez depuis votre historique de commandes.`,

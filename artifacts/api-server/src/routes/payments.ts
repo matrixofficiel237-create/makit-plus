@@ -4,7 +4,10 @@ import { createHmac } from "crypto";
 
 const router = Router();
 
-const CAMPAY_BASE = "https://campay.net/api";
+// demo.campay.net = compte de test | campay.net = compte live approuvé
+const CAMPAY_BASE = process.env.CAMPAY_ENV === "live"
+  ? "https://campay.net/api"
+  : "https://demo.campay.net/api";
 
 function formatPhone(tel: string): string {
   let phone = tel.replace(/[\s\-().+]/g, "");
