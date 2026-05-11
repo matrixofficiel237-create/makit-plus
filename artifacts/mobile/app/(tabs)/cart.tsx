@@ -111,40 +111,30 @@ export default function CartScreen() {
         totalFinal,
       });
 
-      // 2. Lancer le paiement KPay
+      // 2. Lancer le paiement KPay (push USSD direct sur le téléphone)
       const kpayMethod = type === "momo" ? "momo" : "orange";
-      let paymentOpened = false;
       try {
-        const { url } = await api.payments.initiate({
+        const kpayResult = await api.payments.initiate({
           telephone: user.telephone,
           amount: totalFinal,
           method: kpayMethod,
           orderId: order?.id ?? "",
           userName: `${user.prenom} ${user.nom}`,
         });
-        if (url) {
-          const supported = await Linking.canOpenURL(url);
-          if (supported) {
-            await Linking.openURL(url);
-            paymentOpened = true;
-          }
-        }
-      } catch (kpayErr: any) {
-        // KPay indisponible → fallback USSD
-        const code = type === "momo"
-          ? `*126*4*227165*${totalFinal}%23`
-          : `%23150*46*1283376*${totalFinal}%23`;
-        const ussdSupported = await Linking.canOpenURL(`tel:${code}`).catch(() => false);
-        if (ussdSupported) {
-          Linking.openURL(`tel:${code}`).catch(() => {});
-          paymentOpened = true;
-        } else {
+        if (kpayResult.success) {
           Alert.alert(
-            `Paiement ${label}`,
-            `Votre commande est confirmée ! Composez maintenant le code :\n\n${type === "momo" ? "*126*4*227165*" : "#150*46*1283376*"}${totalFinal}#\n\nsur votre téléphone pour finaliser le paiement.`,
+            `✅ Demande ${label} envoyée`,
+            `Une notification de paiement a été envoyée sur votre téléphone (${user.telephone}).\n\nConfirmez en entrant votre PIN ${label} pour finaliser la commande.\n\nRéf : ${kpayResult.reference}`,
             [{ text: "Compris" }]
           );
         }
+      } catch (kpayErr: any) {
+        // KPay indisponible — informer le client
+        Alert.alert(
+          `Paiement ${label}`,
+          `Votre commande est confirmée ! Le service de paiement est momentanément indisponible.\n\nContactez-nous ou réessayez depuis votre historique de commandes.`,
+          [{ text: "OK" }]
+        );
       }
 
       clearCart();

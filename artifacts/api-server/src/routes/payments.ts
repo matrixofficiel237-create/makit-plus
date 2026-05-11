@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 const router = Router();
-const KPAY_URL = "https://pay.esicia.com/";
+const KPAY_URL = "https://admin.kpay.site/api/v1/payments/init";
 
 function formatPhone(tel: string): string {
   let phone = tel.replace(/[\s\-().+]/g, "");
@@ -13,49 +13,55 @@ function formatPhone(tel: string): string {
 
 // POST /api/payments/initiate
 router.post("/initiate", async (req, res) => {
-  const { telephone, amount, method, orderId, userName } = req.body;
+  const { telephone, amount, method, orderId, userName, userEmail } = req.body;
 
   if (!telephone || !amount || !method) {
     res.status(400).json({ error: "Données manquantes (telephone, amount, method)" });
     return;
   }
 
-  const msisdn = formatPhone(String(telephone));
-  const refid = `mkt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const pmethod = method === "momo" ? "momo" : "orange";
+  const phoneNumber = formatPhone(String(telephone));
+  const externalId = orderId ? `ORDER-${orderId}` : `mkt_${Date.now()}`;
+  const label = method === "momo" ? "MTN MoMo" : "Orange Money";
 
   try {
     const kpayRes = await fetch(KPAY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.KPAY_API_KEY ?? ""}`,
+        "X-API-Key": process.env.KPAY_API_KEY ?? "",
+        "X-Secret-Key": process.env.KPAY_SECRET_KEY ?? "",
       },
       body: JSON.stringify({
-        action: "pay",
-        msisdn,
-        details: `Commande Makit+ ${orderId ?? ""}`.trim(),
-        refid,
         amount: Number(amount),
-        currency: "XAF",
-        email: "client@makit.cm",
-        cname: userName ?? "Client Makit+",
-        cnumber: msisdn,
-        pmethod,
-        pin: process.env.KPAY_SECRET_KEY ?? "",
-        returl: "https://market-fresh-delivery--makit4079.replit.app/api/payments/callback",
-        redirecturl: "https://market-fresh-delivery--makit4079.replit.app/landing/",
+        phoneNumber,
+        externalId,
+        description: `Commande Makit+ via ${label}`,
+        customerEmail: userEmail ?? "client@makit.cm",
+        customerName: userName ?? "Client Makit+",
+        metadata: { orderId: orderId ?? "", method },
       }),
     });
 
     const data = await kpayRes.json() as any;
-    req.log.info({ data, msisdn, amount, pmethod }, "KPay initiate response");
+    req.log.info({ data, phoneNumber, amount, method }, "KPay initiate response");
 
-    if (data.success === 1) {
-      res.json({ url: data.url, tid: data.tid, refid });
-    } else {
-      res.status(400).json({ error: data.reply ?? "Paiement refusé par l'opérateur" });
+    if (!kpayRes.ok) {
+      res.status(400).json({
+        error: data.message ?? data.error ?? "Paiement refusé par l'opérateur",
+      });
+      return;
     }
+
+    // KPay envoie un prompt USSD directement sur le téléphone du client
+    // Pas d'URL de redirection — la confirmation se fait sur le téléphone
+    res.json({
+      success: true,
+      reference: data.reference ?? null,
+      tid: data.id ?? null,
+      externalId,
+      message: data.message ?? "Demande de paiement envoyée. Confirmez sur votre téléphone.",
+    });
   } catch (err) {
     req.log.error({ err }, "KPay API error");
     res.status(500).json({ error: "Service de paiement temporairement indisponible" });

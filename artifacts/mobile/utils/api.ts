@@ -75,8 +75,8 @@ export const api = {
       }),
   },
   payments: {
-    initiate: (body: { telephone: string; amount: number; method: "momo" | "orange"; orderId?: string; userName?: string }) =>
-      apiFetch<{ url: string; tid: string; refid: string }>("/payments/initiate", { method: "POST", body: JSON.stringify(body) }),
+    initiate: (body: { telephone: string; amount: number; method: "momo" | "orange"; orderId?: string; userName?: string; userEmail?: string }) =>
+      apiFetch<{ success: boolean; reference: string; tid: string; externalId: string; message: string }>("/payments/initiate", { method: "POST", body: JSON.stringify(body) }),
   },
   referral: {
     get: (userId: string) =>

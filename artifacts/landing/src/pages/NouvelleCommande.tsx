@@ -87,8 +87,9 @@ export default function NouvelleCommande() {
         totalFinal,
       });
 
-      // Lancer le paiement KPay
+      // Lancer le paiement KPay (push USSD direct sur le téléphone)
       const kpayMethod = type === "momo" ? "momo" : "orange";
+      const label = type === "momo" ? "MTN MoMo" : "Orange Money";
       try {
         const kpayRes = await fetch(`${API_BASE}/payments/initiate`, {
           method: "POST",
@@ -102,21 +103,13 @@ export default function NouvelleCommande() {
           }),
         });
         const kpayData = await kpayRes.json();
-        if (kpayData.url) {
-          window.open(kpayData.url, "_blank");
+        if (kpayData.success) {
+          setError(`✅ Demande ${label} envoyée ! Une notification a été envoyée sur le ${telephone}. Confirmez avec votre PIN pour finaliser. Réf : ${kpayData.reference}`);
         } else {
-          // Fallback USSD
-          const code = type === "momo"
-            ? `*126*4*227165*${totalFinal}%23`
-            : `%23150*46*1283376*${totalFinal}%23`;
-          window.location.href = `tel:${code}`;
+          setError(`Paiement : ${kpayData.error ?? "Erreur, réessayez."}`);
         }
       } catch {
-        // Fallback USSD si KPay indisponible
-        const code = type === "momo"
-          ? `*126*4*227165*${totalFinal}%23`
-          : `%23150*46*1283376*${totalFinal}%23`;
-        window.location.href = `tel:${code}`;
+        setError("Service de paiement momentanément indisponible. Votre commande est bien enregistrée.");
       }
 
       navigate("/tableau-de-bord");
