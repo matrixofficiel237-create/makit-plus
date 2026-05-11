@@ -62,8 +62,10 @@ router.post("/initiate", async (req, res) => {
 
     res.json({
       success: true,
+      id: data.id ?? null,
       reference: data.reference ?? null,
-      tid: data.id ?? null,
+      providerReference: data.providerReference ?? null,
+      status: data.status ?? "PENDING",
       externalId,
       message: data.message ?? "Demande de paiement envoyée. Confirmez sur votre téléphone.",
     });
