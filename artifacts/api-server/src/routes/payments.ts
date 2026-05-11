@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { updateOrder, getAllOrders } from "../store";
 
 const router = Router();
 const KPAY_URL = "https://admin.kpay.site/api/v1/payments/init";
@@ -11,7 +12,13 @@ function formatPhone(tel: string): string {
   return phone;
 }
 
-// POST /api/payments/initiate
+/** Extrait l'orderId depuis externalId "ORDER-{id}" */
+function parseOrderId(externalId: string): string | null {
+  const match = externalId?.match(/^ORDER-(.+)$/);
+  return match ? match[1] : null;
+}
+
+// ─── POST /api/payments/initiate ───────────────────────────────────────────────
 router.post("/initiate", async (req, res) => {
   const { telephone, amount, method, orderId, userName, userEmail } = req.body;
 
@@ -53,8 +60,6 @@ router.post("/initiate", async (req, res) => {
       return;
     }
 
-    // KPay envoie un prompt USSD directement sur le téléphone du client
-    // Pas d'URL de redirection — la confirmation se fait sur le téléphone
     res.json({
       success: true,
       reference: data.reference ?? null,
@@ -68,15 +73,59 @@ router.post("/initiate", async (req, res) => {
   }
 });
 
-// POST /api/payments/callback — webhook KPay
-router.post("/callback", (req, res) => {
-  req.log.info({ body: req.body }, "KPay webhook callback");
-  res.json({ ok: true });
-});
+// ─── POST /api/payments/webhook  (+ /callback pour rétrocompat) ────────────────
+async function handleWebhook(req: any, res: any) {
+  // Répondre 200 immédiatement — KPay exige une réponse dans les 5s
+  res.status(200).json({ received: true });
 
-// GET /api/payments/callback — redirection après paiement
-router.get("/callback", (req, res) => {
-  res.json({ ok: true, message: "Paiement reçu" });
+  const { event, paymentId, status, amount, externalId } = req.body ?? {};
+  req.log.info({ event, paymentId, status, amount, externalId }, "KPay webhook received");
+
+  try {
+    switch (event) {
+      case "payment.completed": {
+        // Paiement validé → passer la commande en "achat_en_cours"
+        const orderId = parseOrderId(externalId);
+        if (orderId) {
+          const updated = await updateOrder(orderId, { statut: "achat_en_cours" });
+          req.log.info({ orderId, updated: !!updated }, "Order marked achat_en_cours after KPay payment.completed");
+        } else {
+          req.log.warn({ externalId }, "KPay payment.completed — could not parse orderId");
+        }
+        break;
+      }
+
+      case "payment.failed":
+      case "payment.cancelled": {
+        // Paiement échoué/annulé → remettre la commande en "en_attente"
+        const orderId = parseOrderId(externalId);
+        if (orderId) {
+          await updateOrder(orderId, { statut: "en_attente" });
+          req.log.info({ orderId, event }, "Order reset to en_attente after KPay payment failure");
+        }
+        break;
+      }
+
+      case "withdrawal.completed":
+      case "withdrawal.failed":
+        // Événements de retrait — aucune action sur les commandes
+        req.log.info({ event, paymentId }, "KPay withdrawal event received");
+        break;
+
+      default:
+        req.log.info({ event }, "KPay unknown event — ignored");
+    }
+  } catch (err) {
+    req.log.error({ err, event, externalId }, "Error processing KPay webhook");
+  }
+}
+
+router.post("/webhook", handleWebhook);
+router.post("/callback", handleWebhook);
+
+// ─── GET /api/payments/callback — redirection navigateur après paiement ────────
+router.get("/callback", (_req, res) => {
+  res.redirect("https://market-fresh-delivery--makit4079.replit.app/landing/");
 });
 
 export default router;
