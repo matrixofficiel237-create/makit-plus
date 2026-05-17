@@ -14,28 +14,37 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { API_BASE } from "@/utils/api";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { OrderProvider } from "@/context/OrderContext";
 import { requestNotificationPermissions } from "@/utils/notifications";
+import { useAppUpdate } from "@/hooks/useAppUpdate";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { updateInfo, dismiss } = useAppUpdate();
+
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(livreur)" />
-      <Stack.Screen name="(admin)" />
-      <Stack.Screen name="(sous_admin)" />
-      <Stack.Screen name="order-detail" />
-      <Stack.Screen name="+not-found" />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(livreur)" />
+        <Stack.Screen name="(admin)" />
+        <Stack.Screen name="(sous_admin)" />
+        <Stack.Screen name="order-detail" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      {updateInfo && (
+        <UpdateBanner updateInfo={updateInfo} onDismiss={dismiss} />
+      )}
+    </>
   );
 }
 
@@ -48,9 +57,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Réveil du serveur de production au démarrage
     fetch(`${API_BASE}/healthz`).catch(() => {});
-    // Demander les permissions de notification au démarrage
     requestNotificationPermissions().catch(() => {});
   }, []);
 
