@@ -20,7 +20,7 @@ import * as Haptics from "expo-haptics";
 
 const PROMO_MESSAGES = [
   { emoji: "🎁", text: "Parrainez vos amis et gagnez des points !", sub: "10 points = livraison gratuite" },
-  { emoji: "🚀", text: "Livraison rapide à domicile", sub: "Frais de livraison : 750 FCFA seulement" },
+  { emoji: "🚀", text: "Livraison rapide à domicile", sub: "Frais de livraison à partir de 750 FCFA" },
   { emoji: "🥬", text: "Produits frais du marché", sub: "Légumes, viandes, poissons et plus" },
   { emoji: "📱", text: "Payez facilement par mobile money", sub: "Orange Money & MTN MoMo acceptés" },
   { emoji: "🏆", text: "Cumulez des récompenses !", sub: "Partagez votre code dans Mon profil" },

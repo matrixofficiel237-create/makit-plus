@@ -18,6 +18,7 @@ import { API_BASE } from "@/utils/api";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { OrderProvider } from "@/context/OrderContext";
+import { requestNotificationPermissions } from "@/utils/notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -49,6 +50,8 @@ export default function RootLayout() {
   useEffect(() => {
     // Réveil du serveur de production au démarrage
     fetch(`${API_BASE}/healthz`).catch(() => {});
+    // Demander les permissions de notification au démarrage
+    requestNotificationPermissions().catch(() => {});
   }, []);
 
   useEffect(() => {
