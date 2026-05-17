@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { api } from "@/utils/api";
 import { CartItem } from "./CartContext";
 import { notifyLocalStatusChange } from "@/utils/notifications";
@@ -34,31 +35,63 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | null>(null);
 
+const POLL_INTERVAL_MS = 30_000;
+
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const prevStatuts = useRef<Record<string, OrderStatus>>({});
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => { loadOrders(); }, []);
+  useEffect(() => {
+    loadOrders();
+    startPolling();
+
+    const sub = AppState.addEventListener("change", handleAppState);
+    return () => {
+      sub.remove();
+      stopPolling();
+    };
+  }, []);
+
+  function handleAppState(nextState: AppStateStatus) {
+    if (nextState === "active") {
+      loadOrders();
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollTimer.current = setInterval(() => {
+      loadOrders();
+    }, POLL_INTERVAL_MS);
+  }
+
+  function stopPolling() {
+    if (pollTimer.current) {
+      clearInterval(pollTimer.current);
+      pollTimer.current = null;
+    }
+  }
 
   async function loadOrders() {
     try {
       const { orders: data } = await api.orders.getAll();
 
-      // Détecter les changements de statut et notifier
       const prev = prevStatuts.current;
+      const newStatuts: Record<string, OrderStatus> = {};
+
       for (const order of data as Order[]) {
+        newStatuts[order.id] = order.statut;
         const oldStatut = prev[order.id];
         if (oldStatut && oldStatut !== order.statut) {
           notifyLocalStatusChange(order.statut, order.id).catch(() => {});
         }
       }
-      // Mémoriser les statuts actuels
-      const newStatuts: Record<string, OrderStatus> = {};
-      for (const o of data as Order[]) {
-        newStatuts[o.id] = o.statut;
-      }
-      prevStatuts.current = newStatuts;
 
+      prevStatuts.current = newStatuts;
       setOrders(data as Order[]);
     } catch {}
   }

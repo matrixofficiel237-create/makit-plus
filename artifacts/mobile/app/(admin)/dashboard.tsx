@@ -15,8 +15,6 @@ import * as Haptics from "expo-haptics";
 import { api } from "@/utils/api";
 
 const LIVREUR_PART = 400;
-const ENTREPRISE_PART = 350;
-const FRAIS_LIVRAISON = 750;
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -233,9 +231,10 @@ export default function AdminDashboard() {
   const delivered = allOrders.filter((o) => o.statut === "livre");
 
   const totalCourses = allOrders.reduce((s, o) => s + (o.totalProduits ?? 0), 0);
+  const totalFraisLivraison = delivered.reduce((s, o) => s + (o.fraisLivraison ?? 750), 0);
   const totalPartLivreur = delivered.length * LIVREUR_PART;
-  const totalPartEntreprise = delivered.length * ENTREPRISE_PART;
-  const netEntreprise = delivered.reduce((s, o) => s + (o.totalProduits ?? 0), 0) + totalPartEntreprise;
+  const totalPartEntreprise = totalFraisLivraison - totalPartLivreur;
+  const netEntreprise = totalPartEntreprise;
 
   const byDay = delivered.reduce((acc: Record<string, Order[]>, o) => {
     const k = dayKey(o.date);
@@ -345,14 +344,14 @@ export default function AdminDashboard() {
               </View>
             </View>
             <StatCard label="Commandes totales" value={allOrders.length} color={Colors.primary} icon="shopping-bag" />
-            <StatCard label={`Part livreurs (400 × ${delivered.length})`} value={`− ${totalPartLivreur.toLocaleString()} FCFA`} color={Colors.red} icon="user" />
-            <StatCard label={`Part entreprise (transport, 350 × ${delivered.length})`} value={`${totalPartEntreprise.toLocaleString()} FCFA`} color={Colors.primaryDark} icon="truck" />
+            <StatCard label={`Part livreurs (400 F × ${delivered.length} livraisons)`} value={`− ${totalPartLivreur.toLocaleString()} FCFA`} color={Colors.red} icon="user" />
+            <StatCard label={`Part entreprise (transport net)`} value={`${totalPartEntreprise.toLocaleString()} FCFA`} color={Colors.primaryDark} icon="truck" />
             <View style={styles.breakdownCard}>
               <Text style={styles.breakdownTitle}>💰 Récapitulatif global</Text>
-              <FinanceLine label="Montant courses" value={`${totalCourses.toLocaleString()} FCFA`} />
-              <FinanceLine label={`Transport collecté (750 × ${delivered.length})`} value={`${(delivered.length * FRAIS_LIVRAISON).toLocaleString()} FCFA`} separator />
+              <FinanceLine label="Montant courses (total collecté)" value={`${totalCourses.toLocaleString()} FCFA`} />
+              <FinanceLine label={`Transport collecté (${delivered.length} livraisons, frais variables)`} value={`${totalFraisLivraison.toLocaleString()} FCFA`} separator />
               <FinanceLine label={`  − Part livreurs (400 × ${delivered.length})`} value={`− ${totalPartLivreur.toLocaleString()} FCFA`} red />
-              <FinanceLine label={`  + Part entreprise (350 × ${delivered.length})`} value={`${totalPartEntreprise.toLocaleString()} FCFA`} green />
+              <FinanceLine label={`  = Part entreprise (transport net)`} value={`${totalPartEntreprise.toLocaleString()} FCFA`} green />
               <View style={styles.bTotal}>
                 <Text style={styles.bTotalLabel}>= Revenu net entreprise</Text>
                 <Text style={styles.bTotalValue}>{netEntreprise.toLocaleString()} FCFA</Text>
@@ -368,8 +367,9 @@ export default function AdminDashboard() {
               sortedDays.map((day) => {
                 const dayOrders = byDay[day];
                 const dayCourses = dayOrders.reduce((s, o) => s + o.totalProduits, 0);
-                const dayNet = dayCourses + dayOrders.length * ENTREPRISE_PART;
+                const dayFrais = dayOrders.reduce((s, o) => s + (o.fraisLivraison ?? 750), 0);
                 const dayLivreur = dayOrders.length * LIVREUR_PART;
+                const dayNet = dayFrais - dayLivreur;
                 return (
                   <View key={day} style={styles.dayCard}>
                     <View style={styles.dayHeader}>
