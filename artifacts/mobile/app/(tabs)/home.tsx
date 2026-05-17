@@ -16,6 +16,8 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
 import { useCart } from "@/context/CartContext";
+import { useNotifications } from "@/context/NotificationsContext";
+import NotificationsModal from "@/components/NotificationsModal";
 import * as Haptics from "expo-haptics";
 
 const PROMO_MESSAGES = [
@@ -105,6 +107,8 @@ export default function HomeScreen() {
   const { user, logout } = useAuth();
   const { getOrdersByUser } = useOrders();
   const { count } = useCart();
+  const { unreadCount } = useNotifications();
+  const [showNotifs, setShowNotifs] = useState(false);
 
   const orders = user ? getOrdersByUser(user.id) : [];
   const activeOrders = orders.filter((o) => o.statut !== "livre");
@@ -129,6 +133,19 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          {/* Cloche notifications */}
+          <TouchableOpacity
+            style={styles.cartBtn}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowNotifs(true); }}
+          >
+            <Feather name="bell" size={22} color={Colors.white} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {/* Panier */}
           <TouchableOpacity
             style={styles.cartBtn}
             onPress={() => router.push("/(tabs)/cart")}
@@ -142,6 +159,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <NotificationsModal visible={showNotifs} onClose={() => setShowNotifs(false)} />
 
       {/* Hero Banner */}
       <View style={styles.heroBanner}>

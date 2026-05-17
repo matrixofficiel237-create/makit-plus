@@ -70,4 +70,17 @@ export const api = {
         body: JSON.stringify({ token }),
       }),
   },
+  notifications: {
+    getByUser: (userId: string) =>
+      apiFetch<{ notifications: any[] }>(`/notifications?userId=${userId}`),
+    markRead: (id: string) =>
+      apiFetch<{ success: boolean }>(`/notifications/${id}/read`, { method: "PATCH" }),
+    markAllRead: (userId: string) =>
+      apiFetch<{ success: boolean }>(`/notifications/read-all`, {
+        method: "PATCH",
+        body: JSON.stringify({ userId }),
+      }),
+    delete: (id: string) =>
+      apiFetch<{ success: boolean }>(`/notifications/${id}`, { method: "DELETE" }),
+  },
 };

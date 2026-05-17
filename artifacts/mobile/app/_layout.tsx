@@ -19,6 +19,7 @@ import { API_BASE } from "@/utils/api";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { OrderProvider } from "@/context/OrderContext";
+import { NotificationsProvider } from "@/context/NotificationsContext";
 import { requestNotificationPermissions } from "@/utils/notifications";
 import { useAppUpdate } from "@/hooks/useAppUpdate";
 
@@ -75,13 +76,15 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <OrderProvider>
-              <CartProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <KeyboardProvider>
-                    <RootLayoutNav />
-                  </KeyboardProvider>
-                </GestureHandlerRootView>
-              </CartProvider>
+              <NotificationsProvider>
+                <CartProvider>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <KeyboardProvider>
+                      <RootLayoutNav />
+                    </KeyboardProvider>
+                  </GestureHandlerRootView>
+                </CartProvider>
+              </NotificationsProvider>
             </OrderProvider>
           </AuthProvider>
         </QueryClientProvider>

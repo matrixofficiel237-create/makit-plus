@@ -1,5 +1,5 @@
 import Expo, { ExpoPushMessage } from "expo-server-sdk";
-import { getUserPushToken, getAllUsersByRole } from "../store";
+import { getUserPushToken, getAllUsersByRole, createNotification } from "../store";
 
 const expo = new Expo();
 
@@ -33,6 +33,7 @@ async function sendToToken(token: string, payload: NotifPayload) {
 }
 
 async function sendToUser(userId: string, payload: NotifPayload) {
+  await createNotification({ userId, title: payload.title, body: payload.body, data: payload.data }).catch(() => {});
   const token = await getUserPushToken(userId);
   if (!token) return;
   await sendToToken(token, payload);
@@ -41,6 +42,7 @@ async function sendToUser(userId: string, payload: NotifPayload) {
 async function sendToRole(role: string, payload: NotifPayload) {
   const users = await getAllUsersByRole(role);
   for (const user of users) {
+    await createNotification({ userId: user.id, title: payload.title, body: payload.body, data: payload.data }).catch(() => {});
     if (user.pushToken) {
       await sendToToken(user.pushToken, payload);
     }

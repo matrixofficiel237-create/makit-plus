@@ -1,4 +1,4 @@
-import { db, usersTable, ordersTable, statsTable, referralHistoryTable } from "@workspace/db";
+import { db, usersTable, ordersTable, statsTable, referralHistoryTable, notificationsTable } from "@workspace/db";
 import { eq, desc, inArray, sql } from "drizzle-orm";
 
 export type StoredUser = typeof usersTable.$inferSelect;
@@ -176,4 +176,43 @@ export async function useReward(userId: string): Promise<{ ok: boolean; availabl
   if (available <= 0) return { ok: false, availableRewards: 0 };
   await db.update(usersTable).set({ rewardsUsed: sql`${usersTable.rewardsUsed} + 1` }).where(eq(usersTable.id, userId));
   return { ok: true, availableRewards: available - 1 };
+}
+
+// ── Notifications ──
+
+export async function createNotification(data: {
+  userId: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}): Promise<void> {
+  const id = Date.now().toString() + Math.random().toString(36).slice(2, 7);
+  await db.insert(notificationsTable).values({
+    id,
+    userId: data.userId,
+    title: data.title,
+    body: data.body,
+    data: data.data ?? {},
+  });
+}
+
+export async function getNotificationsByUser(userId: string) {
+  return db
+    .select()
+    .from(notificationsTable)
+    .where(eq(notificationsTable.userId, userId))
+    .orderBy(desc(notificationsTable.createdAt))
+    .limit(50);
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await db.update(notificationsTable).set({ read: true }).where(eq(notificationsTable.id, id));
+}
+
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  await db.update(notificationsTable).set({ read: true }).where(eq(notificationsTable.userId, userId));
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  await db.delete(notificationsTable).where(eq(notificationsTable.id, id));
 }
