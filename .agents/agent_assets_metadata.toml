@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "J7u8_7Wgupmq9tZzewC5P"
@@ -24,3 +23,33 @@ id = "qyDTWDqNfZc27lpJCjL5S"
 uri = "file://artifacts/landing/src/assets/promo-family.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "dtdJJjo8tpj_ROv5IiU-B"
+uri = "file://attached_assets/generated_audio/notif_1_chime_doux.mp3"
+type = "audio"
+title = "Son 1 — Chime doux (sonnette douce)"
+
+[[outputs]]
+id = "l8_hTZYNY-ODQNQIKnH8o"
+uri = "file://attached_assets/generated_audio/notif_2_ding_boutique.mp3"
+type = "audio"
+title = "Son 2 — Ding boutique (clochette vive)"
+
+[[outputs]]
+id = "ctiFzX8W60VsS9vV6sfBc"
+uri = "file://attached_assets/generated_audio/notif_3_pop_moderne.mp3"
+type = "audio"
+title = "Son 3 — Pop moderne (bulle légère)"
+
+[[outputs]]
+id = "-iwHtMTjJyg_tk1Gku685"
+uri = "file://attached_assets/generated_audio/notif_4_marimba.mp3"
+type = "audio"
+title = "Son 4 — Marimba (inspiration africaine)"
+
+[[outputs]]
+id = "O6ocI--_U__oQI5Vh79PB"
+uri = "file://attached_assets/generated_audio/notif_5_digital.mp3"
+type = "audio"
+title = "Son 5 — Digital (deux notes montantes)"
