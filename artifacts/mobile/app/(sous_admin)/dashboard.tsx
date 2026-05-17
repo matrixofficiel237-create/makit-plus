@@ -14,7 +14,6 @@ import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
 
 const LIVREUR_PART = 400;
-const ENTREPRISE_PART = 350;
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -80,10 +79,10 @@ export default function SousAdminDashboard() {
   // Recette journalière
   const todayDelivered = delivered.filter((o) => isToday(o.date));
   const todayRevenueCourses = todayDelivered.reduce((s, o) => s + (o.totalProduits ?? 0), 0);
-  const todayTransport = todayDelivered.length * 750;
+  const todayTransport = todayDelivered.reduce((s, o) => s + (o.fraisLivraison ?? 750), 0);
   const todayPartLivreur = todayDelivered.length * LIVREUR_PART;
-  const todayPartEntreprise = todayDelivered.length * ENTREPRISE_PART;
-  const todayNetEntreprise = todayRevenueCourses + todayPartEntreprise;
+  const todayPartEntreprise = todayTransport - todayPartLivreur;
+  const todayNetEntreprise = todayPartEntreprise;
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -147,7 +146,7 @@ export default function SousAdminDashboard() {
               <View style={styles.breakdownRow}>
                 <View style={styles.breakdownLeft}>
                   <Feather name="truck" size={16} color={Colors.orange} />
-                  <Text style={styles.breakdownLabel}>Transport collecté</Text>
+                  <Text style={styles.breakdownLabel}>Transport collecté ({todayDelivered.length} livr., frais variables)</Text>
                 </View>
                 <Text style={styles.breakdownValue}>{todayTransport.toLocaleString()} FCFA</Text>
               </View>
@@ -163,13 +162,13 @@ export default function SousAdminDashboard() {
               <View style={[styles.breakdownRow, { paddingLeft: 24 }]}>
                 <View style={styles.breakdownLeft}>
                   <Feather name="plus" size={14} color={Colors.primaryDark} />
-                  <Text style={[styles.breakdownLabel, { color: Colors.primaryDark }]}>Part entreprise (350 × {todayDelivered.length})</Text>
+                  <Text style={[styles.breakdownLabel, { color: Colors.primaryDark }]}>Part entreprise (transport net)</Text>
                 </View>
                 <Text style={[styles.breakdownValue, { color: Colors.primaryDark }]}>{todayPartEntreprise.toLocaleString()} FCFA</Text>
               </View>
 
               <View style={styles.breakdownTotal}>
-                <Text style={styles.breakdownTotalLabel}>= Recette nette</Text>
+                <Text style={styles.breakdownTotalLabel}>= Recette nette entreprise</Text>
                 <Text style={styles.breakdownTotalValue}>{todayNetEntreprise.toLocaleString()} FCFA</Text>
               </View>
             </View>
