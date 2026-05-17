@@ -53,3 +53,33 @@ id = "O6ocI--_U__oQI5Vh79PB"
 uri = "file://attached_assets/generated_audio/notif_5_digital.mp3"
 type = "audio"
 title = "Son 5 — Digital (deux notes montantes)"
+
+[[outputs]]
+id = "5-24MVVMHz1Dq0Jcnc4Rb"
+uri = "file://attached_assets/generated_audio/cool_1_bass_synth.mp3"
+type = "audio"
+title = "Son 1 — Bass + Synth (hip-hop vibes)"
+
+[[outputs]]
+id = "PK2Xq-aPedD82DfrrUNPO"
+uri = "file://attached_assets/generated_audio/cool_2_funky_brass.mp3"
+type = "audio"
+title = "Son 2 — Funky Brass (cuivre groovy)"
+
+[[outputs]]
+id = "RuocSuxir3X7VQfG8fN6D"
+uri = "file://attached_assets/generated_audio/cool_3_scifi_swoosh.mp3"
+type = "audio"
+title = "Son 3 — Sci-Fi Swoosh (futuriste)"
+
+[[outputs]]
+id = "X7LNPZ4ZTZIuUtJF2ZD9M"
+uri = "file://attached_assets/generated_audio/cool_4_afrobeat.mp3"
+type = "audio"
+title = "Son 4 — Afrobeat Xylophone (rythme africain)"
+
+[[outputs]]
+id = "HfQcD8ciXdOZv7Wo_3V71"
+uri = "file://attached_assets/generated_audio/cool_5_trap_808.mp3"
+type = "audio"
+title = "Son 5 — Trap 808 (hi-hat + basse)"
