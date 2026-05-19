@@ -54,8 +54,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }, []);
 
   function handleAppState(nextState: AppStateStatus) {
-    if (nextState === "active") {
-      loadOrders();
+    if (nextState === "active" || nextState === "background") {
+      if (nextState === "active") loadOrders();
       startPolling();
     } else {
       stopPolling();

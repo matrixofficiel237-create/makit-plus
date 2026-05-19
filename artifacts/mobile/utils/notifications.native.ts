@@ -14,18 +14,26 @@ Notifications.setNotificationHandler({
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   if (Platform.OS === "web") return null;
-  if (!Device.isDevice) return null;
+  if (!Device.isDevice) {
+    console.warn("[Notifs] Pas un vrai appareil (simulateur) — push désactivé");
+    return null;
+  }
 
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();
+    console.log("[Notifs] Permission actuelle:", existing);
     let finalStatus = existing;
 
     if (existing !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
+      console.log("[Notifs] Permission après demande:", status);
     }
 
-    if (finalStatus !== "granted") return null;
+    if (finalStatus !== "granted") {
+      console.warn("[Notifs] Permission refusée — notifications désactivées");
+      return null;
+    }
 
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("makit-default", {
@@ -37,18 +45,23 @@ export async function registerForPushNotifications(userId: string): Promise<stri
         enableVibrate: true,
         showBadge: true,
       });
+      console.log("[Notifs] Canal Android 'makit-default' configuré");
     }
 
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ??
       "f9b34950-69e5-4f2a-93e1-5b10a62fbad2";
+
+    console.log("[Notifs] Récupération token Expo (projectId:", projectId, ")");
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = tokenData.data;
+    console.log("[Notifs] Token obtenu:", token.slice(0, 30) + "...");
 
-    await api.users.savePushToken(userId, token);
+    const result = await api.users.savePushToken(userId, token);
+    console.log("[Notifs] Token sauvegardé en DB:", result);
     return token;
   } catch (e) {
-    console.warn("[Notifs] Erreur:", e);
+    console.error("[Notifs] ERREUR enregistrement push:", e);
     return null;
   }
 }
@@ -97,6 +110,7 @@ export async function notifyLocalStatusChange(
   if (!msg) return;
 
   const shortId = orderId.slice(-6).toUpperCase();
+  console.log("[Notifs locales] Déclenchement pour statut:", statut, "commande:", shortId);
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -108,7 +122,8 @@ export async function notifyLocalStatusChange(
       },
       trigger: null,
     });
+    console.log("[Notifs locales] Notification envoyée ✅");
   } catch (e) {
-    console.warn("[Notifs locales] Erreur:", e);
+    console.error("[Notifs locales] ERREUR:", e);
   }
 }
