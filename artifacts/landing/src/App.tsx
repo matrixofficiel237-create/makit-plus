@@ -11,7 +11,7 @@ import appShowcase from "./assets/app-showcase.png";
 import promoLivreur from "./assets/promo-livreur.png";
 import promoFamily from "./assets/promo-family.png";
 
-const APK_DOWNLOAD_URL = "https://market-fresh-delivery--makit4079.replit.app/api/download-apk";
+const APK_DOWNLOAD_URL = "https://github.com/matrixofficiel237-create/makit-plus/releases/download/latest/Makit-Plus.apk";
 const API_STATS_BASE = typeof window !== "undefined"
   ? `${window.location.origin}/api`
   : "https://market-fresh-delivery--makit4079.replit.app/api";
