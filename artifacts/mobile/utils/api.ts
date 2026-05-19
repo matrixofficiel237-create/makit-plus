@@ -70,6 +70,16 @@ export const api = {
         body: JSON.stringify({ token }),
       }),
   },
+  referral: {
+    get: (userId: string) =>
+      apiFetch<{ promoCode: string | null; points: number; rewardsUsed: number; availableRewards: number; history: any[] }>(`/referral/${userId}`),
+    generate: (userId: string) =>
+      apiFetch<{ promoCode: string }>(`/referral/${userId}/generate`, { method: "POST" }),
+    useReward: (userId: string) =>
+      apiFetch<{ ok: boolean; availableRewards: number }>(`/referral/${userId}/use-reward`, { method: "POST" }),
+    adminAll: () =>
+      apiFetch<{ totalReferrals: number; totalPoints: number; totalRewardsUsed: number; usersWithPromo: number; topReferrers: any[]; recentReferrals: any[] }>("/referral/admin/all"),
+  },
   notifications: {
     getByUser: (userId: string) =>
       apiFetch<{ notifications: any[] }>(`/notifications?userId=${userId}`),
