@@ -17,6 +17,8 @@
     "drizzle-orm": "catalog:",
     "expo-server-sdk": "^6.1.0",
     "express": "^5",
+    "firebase-admin": "^13.10.0",
+    "pg": "^8.20.0",
     "pino": "^9",
     "pino-http": "^10"
   },

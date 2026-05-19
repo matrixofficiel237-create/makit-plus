@@ -1,6 +1,5 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
-import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { api } from "./api";
 
@@ -15,13 +14,12 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   if (Platform.OS === "web") return null;
   if (!Device.isDevice) {
-    console.warn("[Notifs] Pas un vrai appareil (simulateur) — push désactivé");
+    console.warn("[Notifs] Pas un vrai appareil — push désactivé");
     return null;
   }
 
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();
-    console.log("[Notifs] Permission actuelle:", existing);
     let finalStatus = existing;
 
     if (existing !== "granted") {
@@ -31,7 +29,7 @@ export async function registerForPushNotifications(userId: string): Promise<stri
     }
 
     if (finalStatus !== "granted") {
-      console.warn("[Notifs] Permission refusée — notifications désactivées");
+      console.warn("[Notifs] Permission refusée");
       return null;
     }
 
@@ -45,23 +43,19 @@ export async function registerForPushNotifications(userId: string): Promise<stri
         enableVibrate: true,
         showBadge: true,
       });
-      console.log("[Notifs] Canal Android 'makit-default' configuré");
+      console.log("[Notifs] Canal Android configuré");
     }
 
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ??
-      "f9b34950-69e5-4f2a-93e1-5b10a62fbad2";
+    // Token FCM natif (compatible Firebase Admin SDK)
+    const deviceToken = await Notifications.getDevicePushTokenAsync();
+    const token = deviceToken.data as string;
+    console.log("[Notifs] Token FCM obtenu:", token.slice(0, 30) + "...");
 
-    console.log("[Notifs] Récupération token Expo (projectId:", projectId, ")");
-    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-    const token = tokenData.data;
-    console.log("[Notifs] Token obtenu:", token.slice(0, 30) + "...");
-
-    const result = await api.users.savePushToken(userId, token);
-    console.log("[Notifs] Token sauvegardé en DB:", result);
+    await api.users.savePushToken(userId, token);
+    console.log("[Notifs] Token sauvegardé ✅");
     return token;
   } catch (e) {
-    console.error("[Notifs] ERREUR enregistrement push:", e);
+    console.error("[Notifs] ERREUR enregistrement:", e);
     return null;
   }
 }
@@ -110,7 +104,6 @@ export async function notifyLocalStatusChange(
   if (!msg) return;
 
   const shortId = orderId.slice(-6).toUpperCase();
-  console.log("[Notifs locales] Déclenchement pour statut:", statut, "commande:", shortId);
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -122,7 +115,7 @@ export async function notifyLocalStatusChange(
       },
       trigger: null,
     });
-    console.log("[Notifs locales] Notification envoyée ✅");
+    console.log("[Notifs locales] Envoyée pour statut:", statut);
   } catch (e) {
     console.error("[Notifs locales] ERREUR:", e);
   }
