@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1048379774843",
+    "project_id": "makit-f8375",
+    "storage_bucket": "makit-f8375.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1048379774843:android:a78298bd797846ec9e4fde",
+        "android_client_info": {
+          "package_name": "com.makit.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnYp9szGBs9Oeu6-lxAnbSAry441Um0Bc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
