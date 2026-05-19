@@ -1,4 +1,4 @@
-import Expo, { ExpoPushMessage } from "expo-server-sdk";
+import Expo, { ExpoPushMessage, ExpoPushTicket } from "expo-server-sdk";
 import { getUserPushToken, getAllUsersByRole, createNotification } from "../store";
 
 const expo = new Expo();
@@ -25,26 +25,61 @@ async function sendToToken(token: string, payload: NotifPayload) {
   try {
     const chunks = expo.chunkPushNotifications([message]);
     for (const chunk of chunks) {
-      await expo.sendPushNotificationsAsync(chunk);
+      const tickets: ExpoPushTicket[] = await expo.sendPushNotificationsAsync(chunk);
+      for (const ticket of tickets) {
+        if (ticket.status === "error") {
+          console.error("[Push] ERREUR ticket:", ticket.message, "| details:", JSON.stringify((ticket as any).details));
+        } else {
+          console.log("[Push] Ticket OK, id:", (ticket as any).id);
+          // Vérification du receipt après délai
+          if ((ticket as any).id) {
+            setTimeout(async () => {
+              try {
+                const receiptIdChunks = expo.chunkPushNotificationReceiptIds([(ticket as any).id]);
+                for (const chunk of receiptIdChunks) {
+                  const receipts = await expo.getPushNotificationReceiptsAsync(chunk);
+                  for (const [receiptId, receipt] of Object.entries(receipts)) {
+                    if (receipt.status === "error") {
+                      console.error("[Push] RECEIPT ERREUR:", receipt.message, "| details:", JSON.stringify((receipt as any).details));
+                    } else {
+                      console.log("[Push] Receipt OK pour", receiptId);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error("[Push] Erreur vérification receipt:", e);
+              }
+            }, 5000);
+          }
+        }
+      }
     }
   } catch (err) {
-    console.error("[Push] Erreur envoi :", err);
+    console.error("[Push] Erreur envoi:", err);
   }
 }
 
 async function sendToUser(userId: string, payload: NotifPayload) {
   await createNotification({ userId, title: payload.title, body: payload.body, data: payload.data }).catch(() => {});
   const token = await getUserPushToken(userId);
-  if (!token) return;
+  if (!token) {
+    console.warn("[Push] Pas de token pour userId:", userId);
+    return;
+  }
+  console.log("[Push] Envoi à userId:", userId, "token:", token.slice(0, 30) + "...");
   await sendToToken(token, payload);
 }
 
 async function sendToRole(role: string, payload: NotifPayload) {
   const users = await getAllUsersByRole(role);
+  console.log("[Push] Envoi au rôle:", role, "—", users.length, "utilisateur(s)");
   for (const user of users) {
     await createNotification({ userId: user.id, title: payload.title, body: payload.body, data: payload.data }).catch(() => {});
     if (user.pushToken) {
+      console.log("[Push] Envoi à", user.telephone, "token:", user.pushToken.slice(0, 30) + "...");
       await sendToToken(user.pushToken, payload);
+    } else {
+      console.warn("[Push] Pas de token pour", user.telephone, "(role:", role, ")");
     }
   }
 }
