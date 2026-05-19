@@ -4,6 +4,7 @@ import {
   notifyNewOrder,
   notifyOrderAssigned,
   notifyStatusChange,
+  notifyClientConfirmedDelivery,
 } from "../services/pushNotifications";
 
 const router = Router();
@@ -57,6 +58,12 @@ router.patch("/:id", async (req, res) => {
 
   if (patch.livreurId && patch.livreurId !== existing.livreurId) {
     notifyOrderAssigned(patch.livreurId, updated.id).catch(() => {});
+  }
+
+  if (patch.confirmeRecu && !existing.confirmeRecu) {
+    const client = await findUserById(updated.userId);
+    const clientName = client ? `${client.prenom} ${client.nom}` : "Un client";
+    notifyClientConfirmedDelivery(updated.id, clientName).catch(() => {});
   }
 
   res.json({ order: updated });

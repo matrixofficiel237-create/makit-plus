@@ -92,6 +92,10 @@ export async function notifyStatusChange(
       title: "✅ Commande livrée !",
       body: `La commande #${shortId} a été livrée. Bonne dégustation 🎉`,
     },
+    annule: {
+      title: "❌ Commande annulée",
+      body: `Votre commande #${shortId} a été annulée. Contactez-nous pour plus d'infos.`,
+    },
   };
 
   const msg = messages[newStatut];
@@ -99,6 +103,23 @@ export async function notifyStatusChange(
 
   await sendToUser(clientUserId, {
     ...msg,
+    data: { orderId },
+  });
+}
+
+export async function notifyClientConfirmedDelivery(
+  orderId: string,
+  clientName: string
+) {
+  const shortId = orderId.slice(-6).toUpperCase();
+  await sendToRole("admin", {
+    title: "📬 Livraison confirmée",
+    body: `${clientName} a confirmé la réception de la commande #${shortId}`,
+    data: { orderId },
+  });
+  await sendToRole("sous_admin", {
+    title: "📬 Livraison confirmée",
+    body: `${clientName} a confirmé la réception de la commande #${shortId}`,
     data: { orderId },
   });
 }
