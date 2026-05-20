@@ -6,7 +6,15 @@ import { useAuth } from "../context/AuthContext";
 const GREEN = "#4CAF50";
 const GREEN_DARK = "#388E3C";
 const GREEN_LIGHT = "#E8F5E9";
-const FRAIS_LIVRAISON = 750;
+
+function calculerFraisLivraison(totalProduits: number): number {
+  if (totalProduits <= 0) return 0;
+  if (totalProduits <= 10000) return 750;
+  if (totalProduits <= 20000) return 1000;
+  if (totalProduits <= 30000) return 1500;
+  if (totalProduits <= 50000) return 2000;
+  return 3000;
+}
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -40,7 +48,8 @@ export default function NouvelleCommande() {
   }
 
   const totalProduits = items.reduce((sum, i) => sum + i.prix * i.quantite, 0);
-  const totalFinal = totalProduits + FRAIS_LIVRAISON;
+  const fraisLivraison = calculerFraisLivraison(totalProduits);
+  const totalFinal = totalProduits + fraisLivraison;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,12 +60,12 @@ export default function NouvelleCommande() {
     setLoading(true);
     try {
       await createOrder({
-        userId: user.id,
+        userId: user!.id,
         items: validItems,
         adresse: { nom: nomDestinataire, telephone, quartier, details },
         paiement,
         totalProduits,
-        fraisLivraison: FRAIS_LIVRAISON,
+        fraisLivraison,
         totalFinal,
       });
       navigate("/tableau-de-bord");
@@ -78,12 +87,12 @@ export default function NouvelleCommande() {
     try {
       // Créer la commande
       const result = await createOrder({
-        userId: user.id,
+        userId: user!.id,
         items: validItems,
         adresse: { nom: nomDestinataire, telephone, quartier, details },
         paiement: type,
         totalProduits,
-        fraisLivraison: FRAIS_LIVRAISON,
+        fraisLivraison,
         totalFinal,
       });
 
@@ -334,7 +343,14 @@ export default function NouvelleCommande() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", color: "#555" }}>
               <span>Frais de livraison</span>
-              <span>{FRAIS_LIVRAISON.toLocaleString()} FCFA</span>
+              <span style={{ fontWeight: 700, color: GREEN_DARK }}>{fraisLivraison.toLocaleString()} FCFA</span>
+            </div>
+            <div style={{
+              background: GREEN_LIGHT, borderRadius: 8, padding: "8px 12px",
+              fontSize: 11, color: "#555", lineHeight: 1.6,
+            }}>
+              <span style={{ fontWeight: 700, color: GREEN_DARK }}>📦 Grille tarifaire :</span>{" "}
+              ≤10 000 → 750 · ≤20 000 → 1 000 · ≤30 000 → 1 500 · ≤50 000 → 2 000 · +50 000 → 3 000 FCFA
             </div>
             <div style={{
               display: "flex", justifyContent: "space-between",
