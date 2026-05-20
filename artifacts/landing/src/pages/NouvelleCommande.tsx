@@ -343,14 +343,7 @@ export default function NouvelleCommande() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", color: "#555" }}>
               <span>Frais de livraison</span>
-              <span style={{ fontWeight: 700, color: GREEN_DARK }}>{fraisLivraison.toLocaleString()} FCFA</span>
-            </div>
-            <div style={{
-              background: GREEN_LIGHT, borderRadius: 8, padding: "8px 12px",
-              fontSize: 11, color: "#555", lineHeight: 1.6,
-            }}>
-              <span style={{ fontWeight: 700, color: GREEN_DARK }}>📦 Grille tarifaire :</span>{" "}
-              ≤10 000 → 750 · ≤20 000 → 1 000 · ≤30 000 → 1 500 · ≤50 000 → 2 000 · +50 000 → 3 000 FCFA
+              <span>{fraisLivraison.toLocaleString()} FCFA</span>
             </div>
             <div style={{
               display: "flex", justifyContent: "space-between",
