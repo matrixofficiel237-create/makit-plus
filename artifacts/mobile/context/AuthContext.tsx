@@ -13,6 +13,8 @@ export interface User {
   promoCode?: string | null;
   points?: number;
   rewardsUsed?: number;
+  referredBy?: string | null;
+  prixSpecial?: boolean;
 }
 
 interface AuthContextType {

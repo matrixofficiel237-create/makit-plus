@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
+import { useAuth } from "./AuthContext";
 
 export interface Product {
   id: string;
@@ -35,10 +36,20 @@ export function calculerFraisLivraison(totalProduits: number): number {
   return 3000;
 }
 
+export function calculerFraisLivraisonSpecial(totalProduits: number): number {
+  if (totalProduits <= 0) return 0;
+  if (totalProduits <= 10000) return 1500;
+  if (totalProduits <= 20000) return 2000;
+  if (totalProduits <= 30000) return 2500;
+  if (totalProduits <= 50000) return 3000;
+  return 4000;
+}
+
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const { user } = useAuth();
 
   function addItem(product: Product, quantite: number = 1) {
     setItems((prev) => {
@@ -76,7 +87,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     (sum, i) => sum + i.product.prix * i.quantite,
     0
   );
-  const fraisLivraison = items.length > 0 ? calculerFraisLivraison(totalProduits) : 0;
+  const calculer = user?.prixSpecial ? calculerFraisLivraisonSpecial : calculerFraisLivraison;
+  const fraisLivraison = items.length > 0 ? calculer(totalProduits) : 0;
   const totalFinal = items.length > 0 ? totalProduits + fraisLivraison : 0;
   const count = items.reduce((sum, i) => sum + i.quantite, 0);
 

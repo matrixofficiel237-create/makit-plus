@@ -17,6 +17,7 @@ export interface User {
   telephone: string;
   adresse: string;
   role: string;
+  prixSpecial?: boolean;
 }
 
 export interface OrderItem {

@@ -16,6 +16,15 @@ function calculerFraisLivraison(totalProduits: number): number {
   return 3000;
 }
 
+function calculerFraisLivraisonSpecial(totalProduits: number): number {
+  if (totalProduits <= 0) return 0;
+  if (totalProduits <= 10000) return 1500;
+  if (totalProduits <= 20000) return 2000;
+  if (totalProduits <= 30000) return 2500;
+  if (totalProduits <= 50000) return 3000;
+  return 4000;
+}
+
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
@@ -48,7 +57,9 @@ export default function NouvelleCommande() {
   }
 
   const totalProduits = items.reduce((sum, i) => sum + i.prix * i.quantite, 0);
-  const fraisLivraison = calculerFraisLivraison(totalProduits);
+  const fraisLivraison = user?.prixSpecial
+    ? calculerFraisLivraisonSpecial(totalProduits)
+    : calculerFraisLivraison(totalProduits);
   const totalFinal = totalProduits + fraisLivraison;
 
   async function handleSubmit(e: React.FormEvent) {

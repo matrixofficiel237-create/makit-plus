@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { findUserByPhone, findUserById, createUser, updateUser, generatePromoCode, findUserByPromoCode, setPromoCode, addPointsToUser, createReferralEvent } from "../store";
+import { findUserByPhone, findUserById, createUser, updateUser, generatePromoCode, findUserByPromoCode, setPromoCode, addPointsToUser, createReferralEvent, isPromhandicamFilleul } from "../store";
 
 const router = Router();
 
@@ -15,7 +15,8 @@ router.post("/login", async (req, res) => {
     return;
   }
   const { motDePasse: _, ...safe } = user;
-  res.json({ user: safe });
+  const prixSpecial = await isPromhandicamFilleul(user.referredBy);
+  res.json({ user: { ...safe, prixSpecial } });
 });
 
 router.post("/register", async (req, res) => {
@@ -67,7 +68,8 @@ router.post("/register", async (req, res) => {
   }
 
   const { motDePasse: _, ...safe } = newUser;
-  res.status(201).json({ user: safe, referrerFound: !!referrer });
+  const prixSpecial = await isPromhandicamFilleul(newUser.referredBy);
+  res.status(201).json({ user: { ...safe, prixSpecial }, referrerFound: !!referrer });
 });
 
 router.post("/reset-password", async (req, res) => {

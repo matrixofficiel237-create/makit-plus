@@ -169,6 +169,14 @@ export async function getAllReferrals() {
   return db.select().from(referralHistoryTable).orderBy(desc(referralHistoryTable.createdAt));
 }
 
+export async function isPromhandicamFilleul(referredBy: string | null | undefined): Promise<boolean> {
+  if (!referredBy) return false;
+  const parrain = await findUserByPromoCode(referredBy);
+  if (!parrain) return false;
+  const fullName = `${parrain.nom} ${parrain.prenom}`.toUpperCase();
+  return fullName.includes("PROMHANDICAM");
+}
+
 export async function useReward(userId: string): Promise<{ ok: boolean; availableRewards: number }> {
   const user = await findUserById(userId);
   if (!user) return { ok: false, availableRewards: 0 };
