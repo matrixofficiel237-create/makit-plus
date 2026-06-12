@@ -72,6 +72,14 @@ router.post("/register", async (req, res) => {
   res.status(201).json({ user: { ...safe, prixSpecial }, referrerFound: !!referrer });
 });
 
+router.get("/me/:id", async (req, res) => {
+  const user = await findUserById(req.params.id);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  const { motDePasse: _, ...safe } = user;
+  const prixSpecial = await isPromhandicamFilleul(user.referredBy);
+  res.json({ user: { ...safe, prixSpecial } });
+});
+
 router.post("/reset-password", async (req, res) => {
   const { telephone, newPassword } = req.body as { telephone: string; newPassword: string };
   if (!telephone || !newPassword) {

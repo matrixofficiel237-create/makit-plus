@@ -45,6 +45,7 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ userId, currentPassword, ...patch }),
       }),
+    me: (id: string) => apiFetch<{ user: any }>(`/auth/me/${id}`),
   },
   orders: {
     getAll: () => apiFetch<{ orders: any[] }>("/orders"),

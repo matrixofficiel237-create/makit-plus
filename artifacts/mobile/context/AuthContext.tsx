@@ -59,9 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userData = await AsyncStorage.getItem("makit_user");
       if (userData) {
-        const u = JSON.parse(userData);
-        setUser(u);
-        registerForPushNotifications(u.id).catch(() => {});
+        const cached = JSON.parse(userData);
+        setUser(cached);
+        registerForPushNotifications(cached.id).catch(() => {});
+        api.auth.me(cached.id).then(async ({ user: fresh }) => {
+          await AsyncStorage.setItem("makit_user", JSON.stringify(fresh));
+          setUser(fresh);
+        }).catch(() => {});
       }
     } catch {}
     finally { setIsLoading(false); }
