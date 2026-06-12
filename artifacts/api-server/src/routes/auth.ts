@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { findUserByPhone, findUserById, createUser, updateUser, generatePromoCode, findUserByPromoCode, setPromoCode, addPointsToUser, createReferralEvent, isPromhandicamFilleul } from "../store";
+import { findUserByPhone, findUserById, createUser, updateUser, generatePromoCode, findUserByPromoCode, setPromoCode, addPointsToUser, createReferralEvent, hasPrixSpecial } from "../store";
 
 const router = Router();
 
@@ -15,7 +15,7 @@ router.post("/login", async (req, res) => {
     return;
   }
   const { motDePasse: _, ...safe } = user;
-  const prixSpecial = await isPromhandicamFilleul(user.referredBy);
+  const prixSpecial = await hasPrixSpecial(user);
   res.json({ user: { ...safe, prixSpecial } });
 });
 
@@ -68,7 +68,7 @@ router.post("/register", async (req, res) => {
   }
 
   const { motDePasse: _, ...safe } = newUser;
-  const prixSpecial = await isPromhandicamFilleul(newUser.referredBy);
+  const prixSpecial = await hasPrixSpecial(newUser);
   res.status(201).json({ user: { ...safe, prixSpecial }, referrerFound: !!referrer });
 });
 
@@ -76,7 +76,7 @@ router.get("/me/:id", async (req, res) => {
   const user = await findUserById(req.params.id);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   const { motDePasse: _, ...safe } = user;
-  const prixSpecial = await isPromhandicamFilleul(user.referredBy);
+  const prixSpecial = await hasPrixSpecial(user);
   res.json({ user: { ...safe, prixSpecial } });
 });
 

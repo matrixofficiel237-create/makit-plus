@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllOrders, getOrdersByUser, createOrder, updateOrder, deleteOrder, StoredOrder, findUserById, isPromhandicamFilleul } from "../store";
+import { getAllOrders, getOrdersByUser, createOrder, updateOrder, deleteOrder, StoredOrder, findUserById, hasPrixSpecial } from "../store";
 import { notifyNewOrder, notifyOrderAssigned, notifyStatusChange, notifyClientConfirmedDelivery } from "../services/pushNotifications";
 
 function calculerFraisLivraison(total: number): number {
@@ -36,7 +36,7 @@ router.post("/", async (req, res) => {
   }
 
   const client = await findUserById(body.userId);
-  const special = await isPromhandicamFilleul(client?.referredBy);
+  const special = client ? await hasPrixSpecial(client) : false;
   const totalProduits = body.totalProduits ?? 0;
   const fraisLivraison = special
     ? calculerFraisLivraisonSpecial(totalProduits)

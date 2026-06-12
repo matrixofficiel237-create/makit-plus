@@ -169,12 +169,14 @@ export async function getAllReferrals() {
   return db.select().from(referralHistoryTable).orderBy(desc(referralHistoryTable.createdAt));
 }
 
-export async function isPromhandicamFilleul(referredBy: string | null | undefined): Promise<boolean> {
-  if (!referredBy) return false;
-  const parrain = await findUserByPromoCode(referredBy);
+export async function hasPrixSpecial(user: { nom: string; prenom: string; referredBy?: string | null }): Promise<boolean> {
+  const ownName = `${user.nom} ${user.prenom}`.toUpperCase();
+  if (ownName.includes("PROMHANDICAM")) return true;
+  if (!user.referredBy) return false;
+  const parrain = await findUserByPromoCode(user.referredBy);
   if (!parrain) return false;
-  const fullName = `${parrain.nom} ${parrain.prenom}`.toUpperCase();
-  return fullName.includes("PROMHANDICAM");
+  const parrainName = `${parrain.nom} ${parrain.prenom}`.toUpperCase();
+  return parrainName.includes("PROMHANDICAM");
 }
 
 export async function useReward(userId: string): Promise<{ ok: boolean; availableRewards: number }> {
