@@ -10,8 +10,8 @@ export interface Order {
   id: string;
   userId: string;
   items: CartItem[];
-  adresse: { quartier: string; rue: string; description: string };
-  paiement: "livraison" | "mobile_money";
+  adresse: { quartier: string; rue: string; description: string; details?: string };
+  paiement: "livraison" | "mobile_money" | "orange_money" | "momo";
   statut: OrderStatus;
   totalProduits: number;
   fraisLivraison: number;

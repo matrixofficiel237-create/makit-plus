@@ -41,7 +41,7 @@ function isToday(dateStr: string) {
 
 function LivreurOrderCard({ order, client, onUpdateStatus }: {
   order: Order;
-  client?: { prenom: string; nom: string; telephone: string; adresse: string } | null;
+  client?: { prenom: string; nom: string; telephone: string; adresse: string; latitude?: number | null; longitude?: number | null } | null;
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
 }) {
   const nextStatus = STATUS_NEXT[order.statut];

@@ -11,7 +11,6 @@ import {
   Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Colors from "@/constants/colors";
@@ -24,7 +23,7 @@ export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   // Hauteur réelle de la tab bar (inclut les insets de zone sécurisée)
-  const TAB_BAR_BOTTOM = useBottomTabBarHeight();
+  const { bottom: TAB_BAR_BOTTOM } = useSafeAreaInsets();
   const { items, removeItem, updateQuantite, clearCart, totalProduits, fraisLivraison, totalFinal } = useCart();
   const { user } = useAuth();
   const { createOrder } = useOrders();

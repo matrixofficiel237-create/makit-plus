@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: Colors.lighter,
+    borderColor: Colors.primaryLighter,
   },
   gpsText: {
     flex: 1,

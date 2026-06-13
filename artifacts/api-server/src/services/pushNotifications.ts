@@ -26,7 +26,7 @@ type NotifPayload = {
 async function sendToToken(token: string, payload: NotifPayload) {
   if (!token) return;
   try {
-    const message: admin.messaging.Message = {
+    const message = {
       token,
       notification: {
         title: payload.title,
