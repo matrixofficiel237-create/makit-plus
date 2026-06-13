@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 import { api } from "@/utils/api";
 import { registerForPushNotifications } from "@/utils/notifications";
 
@@ -53,6 +54,24 @@ export interface ManagedUserData {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+async function captureGPSSilently(userId: string, setUser: React.Dispatch<React.SetStateAction<User | null>>) {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") return;
+    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    const { latitude, longitude } = loc.coords;
+    api.users.update(userId, { latitude, longitude }).then(({ user: updated }) => {
+      setUser(prev => prev ? { ...prev, latitude: updated.latitude, longitude: updated.longitude } : prev);
+      AsyncStorage.getItem("makit_user").then(raw => {
+        if (raw) {
+          const cached = JSON.parse(raw);
+          AsyncStorage.setItem("makit_user", JSON.stringify({ ...cached, latitude, longitude })).catch(() => {});
+        }
+      }).catch(() => {});
+    }).catch(() => {});
+  } catch {}
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cached = JSON.parse(userData);
         setUser(cached);
         registerForPushNotifications(cached.id).catch(() => {});
+        if (cached.role === "client") {
+          captureGPSSilently(cached.id, setUser);
+        }
         api.auth.me(cached.id).then(async ({ user: fresh }) => {
           await AsyncStorage.setItem("makit_user", JSON.stringify(fresh));
           setUser(fresh);
@@ -80,6 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem("makit_user", JSON.stringify(u));
     setUser(u);
     registerForPushNotifications(u.id).catch(() => {});
+    if (u.role === "client") {
+      captureGPSSilently(u.id, setUser);
+    }
     return u;
   }
 
@@ -88,6 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem("makit_user", JSON.stringify(u));
     setUser(u);
     registerForPushNotifications(u.id).catch(() => {});
+    if (u.role === "client") {
+      captureGPSSilently(u.id, setUser);
+    }
     return u;
   }
 
