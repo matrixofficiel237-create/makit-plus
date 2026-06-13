@@ -50,8 +50,9 @@ router.patch("/:id", async (req, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  const { nom, prenom, telephone, adresse } = req.body as {
+  const { nom, prenom, telephone, adresse, latitude, longitude } = req.body as {
     nom?: string; prenom?: string; telephone?: string; adresse?: string;
+    latitude?: number | null; longitude?: number | null;
   };
   if (telephone && telephone !== user.telephone) {
     const existing = await findUserByPhone(telephone);
@@ -65,6 +66,8 @@ router.patch("/:id", async (req, res) => {
   if (prenom !== undefined) patch.prenom = prenom;
   if (telephone !== undefined) patch.telephone = telephone;
   if (adresse !== undefined) patch.adresse = adresse;
+  if (latitude !== undefined) patch.latitude = latitude;
+  if (longitude !== undefined) patch.longitude = longitude;
   const updated = await updateUser(id, patch);
   if (!updated) {
     res.status(404).json({ error: "User not found" });

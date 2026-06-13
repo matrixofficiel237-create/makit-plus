@@ -9,20 +9,22 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
+import * as Location from "expo-location";
 import Colors from "@/constants/colors";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrderContext";
+import { api } from "@/utils/api";
 import * as Haptics from "expo-haptics";
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  // Hauteur réelle de la tab bar (inclut les insets de zone sécurisée)
   const { bottom: TAB_BAR_BOTTOM } = useSafeAreaInsets();
   const { items, removeItem, updateQuantite, clearCart, totalProduits, fraisLivraison, totalFinal } = useCart();
   const { user } = useAuth();
@@ -37,6 +39,56 @@ export default function CartScreen() {
   const [errors, setErrors] = useState({ quartier: false, rue: false });
   const [confirmed, setConfirmed] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [gpsSuccess, setGpsSuccess] = useState(false);
+
+  async function handleGetGPS() {
+    if (Platform.OS === "web") {
+      Alert.alert("GPS non disponible", "Le GPS fonctionne uniquement sur l'application Android.");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsSuccess(false);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission refusée",
+          "Autorisez l'accès à la localisation dans les paramètres de votre téléphone pour utiliser cette fonctionnalité.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+      setGpsCoords({ latitude, longitude });
+
+      const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+      if (place) {
+        const q = place.subregion ?? place.district ?? place.city ?? place.region ?? "";
+        const r = place.street ?? place.name ?? "";
+        if (q && !quartier) setQuartier(q);
+        if (r && !rue) setRue(r);
+      }
+
+      setGpsSuccess(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      if (user) {
+        api.users.update(user.id, { latitude, longitude }).catch(() => {});
+      }
+    } catch {
+      Alert.alert("Erreur GPS", "Impossible de récupérer votre position. Vérifiez que le GPS est activé.");
+    } finally {
+      setGpsLoading(false);
+    }
+  }
 
   async function handleConfirm() {
     setSubmitError("");
@@ -47,7 +99,6 @@ export default function CartScreen() {
     setErrors(newErrors);
     if (newErrors.quartier || newErrors.rue) {
       setSubmitError("Veuillez remplir votre adresse de livraison (quartier et rue)");
-      // Remonter vers les champs vides
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
@@ -87,13 +138,11 @@ export default function CartScreen() {
     }
     if (!user) { router.replace("/(auth)/login"); return; }
 
-    // Ouvrir le composeur USSD immédiatement
     const code = type === "momo"
       ? `*126*4*227165*${totalFinal}%23`
       : `%23150*46*1283376*${totalFinal}%23`;
     Linking.openURL(`tel:${code}`).catch(() => {});
 
-    // Confirmer la commande en même temps
     setPaiement(type);
     setLoading(true);
     try {
@@ -246,6 +295,41 @@ export default function CartScreen() {
         {/* Adresse */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📍 Adresse de livraison</Text>
+
+          {/* Bouton GPS */}
+          <TouchableOpacity
+            style={[styles.gpsBtn, gpsSuccess && styles.gpsBtnSuccess]}
+            onPress={handleGetGPS}
+            disabled={gpsLoading}
+            activeOpacity={0.8}
+          >
+            {gpsLoading ? (
+              <ActivityIndicator size="small" color={gpsSuccess ? Colors.primary : Colors.white} />
+            ) : (
+              <Feather
+                name={gpsSuccess ? "check-circle" : "navigation"}
+                size={18}
+                color={gpsSuccess ? Colors.primary : Colors.white}
+              />
+            )}
+            <Text style={[styles.gpsBtnText, gpsSuccess && styles.gpsBtnTextSuccess]}>
+              {gpsLoading
+                ? "Localisation en cours..."
+                : gpsSuccess
+                ? "Position GPS enregistrée ✓"
+                : "📡 Utiliser ma position GPS"}
+            </Text>
+          </TouchableOpacity>
+
+          {gpsSuccess && (
+            <View style={styles.gpsInfoBox}>
+              <Feather name="info" size={13} color={Colors.primary} />
+              <Text style={styles.gpsInfoText}>
+                Votre position a été enregistrée. Elle aide l'admin à organiser les livraisons par zone.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.formCard}>
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Quartier *</Text>
@@ -287,7 +371,6 @@ export default function CartScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 Mode de paiement</Text>
 
-          {/* Paiement à la livraison – sélection classique */}
           <TouchableOpacity
             style={[styles.payOption, paiement === "livraison" && styles.payOptionActive]}
             onPress={() => setPaiement("livraison")}
@@ -304,14 +387,12 @@ export default function CartScreen() {
             {paiement === "livraison" && <Feather name="check-circle" size={22} color={Colors.primary} />}
           </TouchableOpacity>
 
-          {/* Séparateur */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
             <Text style={{ fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular" }}>OU PAYER MAINTENANT</Text>
             <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
           </View>
 
-          {/* Orange Money – bouton d'action direct */}
           <TouchableOpacity
             style={styles.mobilePayBtn}
             onPress={() => handleMobileMoneyPay("orange_money")}
@@ -328,7 +409,6 @@ export default function CartScreen() {
             <Feather name="phone-call" size={20} color="#FF6D00" />
           </TouchableOpacity>
 
-          {/* MTN MoMo – bouton d'action direct */}
           <TouchableOpacity
             style={styles.mtnPayBtn}
             onPress={() => handleMobileMoneyPay("momo")}
@@ -347,7 +427,7 @@ export default function CartScreen() {
         </View>
       </ScrollView>
 
-      {/* Bouton Confirmer — au-dessus de la barre de navigation */}
+      {/* Bouton Confirmer */}
       <View style={styles.confirmBar}>
         {submitError ? (
           <View style={styles.submitErrorBox}>
@@ -375,7 +455,6 @@ export default function CartScreen() {
           )}
         </TouchableOpacity>
       </View>
-      {/* Espace pour la barre de navigation */}
       <View style={{ height: TAB_BAR_BOTTOM }} />
     </View>
   );
@@ -471,6 +550,55 @@ const styles = StyleSheet.create({
   totalRow: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, marginTop: 2 },
   totalLabel: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
   totalValue: { fontSize: 18, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+
+  // GPS button
+  gpsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  gpsBtnSuccess: {
+    backgroundColor: Colors.primaryLighter,
+    shadowOpacity: 0,
+    elevation: 0,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  gpsBtnText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+  },
+  gpsBtnTextSuccess: {
+    color: Colors.primary,
+  },
+  gpsInfoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: Colors.primaryLighter,
+    borderRadius: 10,
+    padding: 10,
+  },
+  gpsInfoText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.primaryDark,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 17,
+  },
+
   formCard: {
     backgroundColor: Colors.white,
     borderRadius: 14,

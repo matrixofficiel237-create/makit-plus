@@ -62,7 +62,7 @@ export const api = {
       apiFetch<{ users: any[] }>(`/users${role ? `?role=${role}` : ""}`),
     create: (body: { nom: string; prenom: string; telephone: string; motDePasse: string; role: string; adresse?: string }) =>
       apiFetch<{ user: any }>("/users", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: string, patch: { nom?: string; prenom?: string; telephone?: string; adresse?: string }) =>
+    update: (id: string, patch: { nom?: string; prenom?: string; telephone?: string; adresse?: string; latitude?: number | null; longitude?: number | null }) =>
       apiFetch<{ user: any }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
     delete: (id: string) => apiFetch<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
     savePushToken: (userId: string, token: string) =>
