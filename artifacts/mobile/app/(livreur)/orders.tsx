@@ -13,6 +13,7 @@ import { api } from "@/utils/api";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
+import { assignerZone } from "@/utils/zones";
 
 const LIVREUR_GAIN = 400;
 
@@ -63,6 +64,15 @@ function LivreurOrderCard({ order, client, onUpdateStatus }: {
             <Text style={styles.clientPhone}>📞 {client.telephone}</Text>
             {client.adresse ? <Text style={styles.clientAddr}>📍 {client.adresse}</Text> : null}
           </View>
+          {client.latitude != null && client.longitude != null && (() => {
+            const zone = assignerZone(client.latitude!, client.longitude!);
+            return (
+              <View style={[styles.zoneBadge, { borderColor: zone.couleur }]}>
+                <Text style={{ fontSize: 11 }}>{zone.emoji}</Text>
+                <Text style={[styles.zoneBadgeText, { color: zone.couleur }]}>{zone.nom.split(" / ")[0]}</Text>
+              </View>
+            );
+          })()}
         </View>
       )}
 
@@ -397,4 +407,8 @@ const styles = StyleSheet.create({
   gainsTotalRow: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12, marginTop: 4 },
   gainsNote: { flexDirection: "row", gap: 10, backgroundColor: Colors.primaryLighter, borderRadius: 12, padding: 14, alignItems: "flex-start" },
   gainsNoteText: { flex: 1, fontSize: 12, color: Colors.primaryDark, fontFamily: "Inter_400Regular", lineHeight: 18 },
+
+  // Zone badge on client row
+  zoneBadge: { flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3 },
+  zoneBadgeText: { fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold" },
 });

@@ -1,24 +1,7 @@
 import { Router } from "express";
 import { getAllOrders, getOrdersByUser, createOrder, updateOrder, deleteOrder, StoredOrder, findUserById, hasPrixSpecial } from "../store";
 import { notifyNewOrder, notifyOrderAssigned, notifyStatusChange, notifyClientConfirmedDelivery } from "../services/pushNotifications";
-
-function calculerFraisLivraison(total: number): number {
-  if (total <= 0) return 0;
-  if (total <= 10000) return 750;
-  if (total <= 20000) return 1000;
-  if (total <= 30000) return 1500;
-  if (total <= 50000) return 2000;
-  return 3000;
-}
-
-function calculerFraisLivraisonSpecial(total: number): number {
-  if (total <= 0) return 0;
-  if (total <= 10000) return 1500;
-  if (total <= 20000) return 2000;
-  if (total <= 30000) return 2500;
-  if (total <= 50000) return 3000;
-  return 4000;
-}
+import { calculerFrais } from "../utils/livraison";
 
 const router = Router();
 
@@ -38,9 +21,7 @@ router.post("/", async (req, res) => {
   const client = await findUserById(body.userId);
   const special = client ? await hasPrixSpecial(client) : false;
   const totalProduits = body.totalProduits ?? 0;
-  const fraisLivraison = special
-    ? calculerFraisLivraisonSpecial(totalProduits)
-    : calculerFraisLivraison(totalProduits);
+  const fraisLivraison = calculerFrais(client?.latitude, client?.longitude, totalProduits, special);
   const totalFinal = totalProduits + fraisLivraison;
 
   const order = await createOrder({

@@ -20,8 +20,9 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/register", async (req, res) => {
-  const { nom, prenom, telephone, adresse, motDePasse, codeParrain } = req.body as {
-    nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string; codeParrain?: string;
+  const { nom, prenom, telephone, adresse, motDePasse, codeParrain, latitude, longitude } = req.body as {
+    nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string;
+    codeParrain?: string; latitude?: number; longitude?: number;
   };
   if (!nom || !prenom || !telephone || !motDePasse) {
     res.status(400).json({ error: "Missing required fields" });
@@ -54,6 +55,8 @@ router.post("/register", async (req, res) => {
     role: "client",
     promoCode,
     referredBy: referrer?.promoCode ?? null,
+    latitude: latitude ?? null,
+    longitude: longitude ?? null,
   });
 
   // Créditer le parrain si le code était valide

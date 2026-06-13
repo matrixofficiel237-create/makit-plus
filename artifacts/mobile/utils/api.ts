@@ -30,7 +30,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ telephone, motDePasse }),
       }),
-    register: (body: { nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string }) =>
+    register: (body: { nom: string; prenom: string; telephone: string; adresse: string; motDePasse: string; codeParrain?: string; latitude?: number | null; longitude?: number | null }) =>
       apiFetch<{ user: any }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(body),

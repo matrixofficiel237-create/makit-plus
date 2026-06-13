@@ -18,6 +18,8 @@ export interface User {
   adresse: string;
   role: string;
   prixSpecial?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface OrderItem {
@@ -55,6 +57,8 @@ export async function register(payload: {
   adresse: string;
   motDePasse: string;
   codeParrain?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }): Promise<User> {
   const data = await request<{ user: User }>("/auth/register", {
     method: "POST",

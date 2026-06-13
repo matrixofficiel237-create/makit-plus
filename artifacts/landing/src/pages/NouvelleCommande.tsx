@@ -2,28 +2,11 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { createOrder, type OrderItem, API_BASE } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { calculerFrais } from "../utils/livraison";
 
 const GREEN = "#4CAF50";
 const GREEN_DARK = "#388E3C";
 const GREEN_LIGHT = "#E8F5E9";
-
-function calculerFraisLivraison(totalProduits: number): number {
-  if (totalProduits <= 0) return 0;
-  if (totalProduits <= 10000) return 750;
-  if (totalProduits <= 20000) return 1000;
-  if (totalProduits <= 30000) return 1500;
-  if (totalProduits <= 50000) return 2000;
-  return 3000;
-}
-
-function calculerFraisLivraisonSpecial(totalProduits: number): number {
-  if (totalProduits <= 0) return 0;
-  if (totalProduits <= 10000) return 1500;
-  if (totalProduits <= 20000) return 2000;
-  if (totalProduits <= 30000) return 2500;
-  if (totalProduits <= 50000) return 3000;
-  return 4000;
-}
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -57,9 +40,7 @@ export default function NouvelleCommande() {
   }
 
   const totalProduits = items.reduce((sum, i) => sum + i.prix * i.quantite, 0);
-  const fraisLivraison = user?.prixSpecial
-    ? calculerFraisLivraisonSpecial(totalProduits)
-    : calculerFraisLivraison(totalProduits);
+  const fraisLivraison = calculerFrais(user?.latitude, user?.longitude, totalProduits, user?.prixSpecial ?? false);
   const totalFinal = totalProduits + fraisLivraison;
 
   async function handleSubmit(e: React.FormEvent) {

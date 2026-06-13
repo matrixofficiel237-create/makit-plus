@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, doublePrecision } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey(),
@@ -13,6 +13,8 @@ export const usersTable = pgTable("users", {
   points: integer("points").notNull().default(0),
   referredBy: text("referred_by"),
   rewardsUsed: integer("rewards_used").notNull().default(0),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

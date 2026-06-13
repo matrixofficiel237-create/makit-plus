@@ -15,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import Colors from "@/constants/colors";
 import * as Haptics from "expo-haptics";
 import { Feather } from "@expo/vector-icons";
+import * as Location from "expo-location";
 
 export default function RegisterScreen() {
   const [form, setForm] = useState({
@@ -34,6 +35,17 @@ export default function RegisterScreen() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  async function getGPSCoords(): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return null;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      return { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+    } catch {
+      return null;
+    }
+  }
+
   async function handleRegister() {
     if (!form.nom || !form.prenom || !form.telephone || !form.adresse || !form.motDePasse) {
       setError("Veuillez remplir tous les champs");
@@ -50,6 +62,7 @@ export default function RegisterScreen() {
     setLoading(true);
     setError("");
     try {
+      const coords = await getGPSCoords();
       await register({
         nom: form.nom,
         prenom: form.prenom,
@@ -57,6 +70,8 @@ export default function RegisterScreen() {
         adresse: form.adresse,
         motDePasse: form.motDePasse,
         codeParrain: form.codeParrain.trim() || undefined,
+        latitude: coords?.latitude ?? null,
+        longitude: coords?.longitude ?? null,
       });
       setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -179,6 +194,13 @@ export default function RegisterScreen() {
               autoCapitalize="characters"
             />
             <Text style={styles.promoHint}>Entrez le code d'un ami pour lui offrir 1 point</Text>
+          </View>
+
+          <View style={styles.gpsInfo}>
+            <Feather name="map-pin" size={14} color={Colors.primary} />
+            <Text style={styles.gpsText}>
+              Votre position GPS sera utilisée pour calculer les frais de livraison exacts
+            </Text>
           </View>
 
           <TouchableOpacity
@@ -349,6 +371,23 @@ const styles = StyleSheet.create({
   promoHint: {
     fontSize: 11,
     color: Colors.textLight,
+    fontFamily: "Inter_400Regular",
+  },
+  gpsInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F1FDF3",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.lighter,
+  },
+  gpsText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.primaryDark,
     fontFamily: "Inter_400Regular",
   },
 });

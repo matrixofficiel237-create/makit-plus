@@ -8,6 +8,7 @@ import statsRouter from "./stats";
 import referralRouter from "./referral";
 import paymentsRouter from "./payments";
 import notificationsRouter from "./notifications";
+import adminMapRouter from "./admin-map";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use("/stats", statsRouter);
 router.use("/referral", referralRouter);
 router.use("/payments", paymentsRouter);
 router.use("/notifications", notificationsRouter);
+router.use(adminMapRouter);
 
 export default router;

@@ -15,6 +15,8 @@ export interface User {
   rewardsUsed?: number;
   referredBy?: string | null;
   prixSpecial?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface AuthContextType {
@@ -37,6 +39,8 @@ interface RegisterData {
   adresse: string;
   motDePasse: string;
   codeParrain?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface ManagedUserData {

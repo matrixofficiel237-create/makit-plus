@@ -13,6 +13,7 @@ import OrderStatusBadge from "@/components/OrderStatusBadge";
 import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
 import { api } from "@/utils/api";
+import { assignerZone, ZONES } from "@/utils/zones";
 
 const LIVREUR_PART = 400;
 
@@ -44,7 +45,7 @@ function StatCard({ label, value, color, icon }: { label: string; value: string 
   );
 }
 
-type Tab = "orders" | "stats" | "equipe" | "clients" | "parrainage" | "settings";
+type Tab = "orders" | "stats" | "equipe" | "clients" | "zones" | "parrainage" | "settings";
 type TeamSection = "sous_admin" | "livreur";
 
 const blankForm = { nom: "", prenom: "", telephone: "", motDePasse: "" };
@@ -83,6 +84,7 @@ export default function AdminDashboard() {
 
   // Expanded client (to see their orders)
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
+  const [expandedZone, setExpandedZone] = useState<string | null>(null);
 
   // Referral / Parrainage admin data
   const [referralAdmin, setReferralAdmin] = useState<{
@@ -253,6 +255,7 @@ export default function AdminDashboard() {
     { key: "stats", label: "Finances", icon: "bar-chart-2" },
     { key: "equipe", label: "Équipe", icon: "users" },
     { key: "clients", label: `Clients (${clients.length})`, icon: "user" },
+    { key: "zones", label: "Zones", icon: "map-pin" },
     { key: "parrainage", label: "Parrainage", icon: "gift" },
     { key: "settings", label: "Réglages", icon: "settings" },
   ];
@@ -533,6 +536,87 @@ export default function AdminDashboard() {
             )}
           </>
         )}
+
+        {/* ── ZONES ── */}
+        {activeTab === "zones" && (() => {
+          const clientsWithGPS = clients.filter(c => c.latitude != null && c.longitude != null);
+          const zoneStats = ZONES.map(z => {
+            const zoneClients = clientsWithGPS.filter(c => assignerZone(c.latitude!, c.longitude!).id === z.id);
+            const activeInZone = allOrders.filter(o =>
+              ["en_attente", "achat_en_cours", "en_livraison"].includes(o.statut) &&
+              zoneClients.some(c => c.id === o.userId)
+            );
+            return { ...z, clients: zoneClients, activeOrders: activeInZone };
+          });
+          return (
+            <>
+              <View style={styles.zonesHero}>
+                <Feather name="map-pin" size={22} color={Colors.primary} />
+                <Text style={styles.zonesHeroText}>{clientsWithGPS.length} client{clientsWithGPS.length !== 1 ? "s" : ""} géolocalisé{clientsWithGPS.length !== 1 ? "s" : ""}</Text>
+                {clientsWithGPS.length < clients.length && (
+                  <Text style={styles.zonesHeroSub}>{clients.length - clientsWithGPS.length} sans GPS</Text>
+                )}
+              </View>
+              {zoneStats.map(z => (
+                <TouchableOpacity
+                  key={z.id}
+                  style={[styles.zoneCard, { borderLeftColor: z.couleur }]}
+                  onPress={() => setExpandedZone(expandedZone === z.id ? null : z.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.zoneCardHeader}>
+                    <View style={styles.zoneEmoji}>
+                      <Text style={{ fontSize: 22 }}>{z.emoji}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.zoneName}>{z.nom}</Text>
+                      <Text style={styles.zoneSub}>{z.clients.length} client{z.clients.length !== 1 ? "s" : ""}</Text>
+                    </View>
+                    <View style={styles.zoneRight}>
+                      {z.activeOrders.length > 0 && (
+                        <View style={[styles.activeOrderBadge, { backgroundColor: z.couleur }]}>
+                          <Text style={styles.activeOrderBadgeText}>{z.activeOrders.length} actif{z.activeOrders.length > 1 ? "s" : ""}</Text>
+                        </View>
+                      )}
+                      <Feather name={expandedZone === z.id ? "chevron-up" : "chevron-down"} size={18} color={Colors.textLight} />
+                    </View>
+                  </View>
+                  {expandedZone === z.id && z.clients.length > 0 && (
+                    <View style={styles.zoneClientList}>
+                      {z.clients.map(c => {
+                        const hasActive = allOrders.some(o =>
+                          o.userId === c.id && ["en_attente", "achat_en_cours", "en_livraison"].includes(o.statut)
+                        );
+                        return (
+                          <View key={c.id} style={styles.zoneClientRow}>
+                            <View style={styles.zoneClientAvatar}>
+                              <Text style={{ fontSize: 13, fontWeight: "700", color: z.couleur }}>{c.prenom?.charAt(0) ?? "?"}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.zoneClientName}>{c.prenom} {c.nom}</Text>
+                              <Text style={styles.zoneClientPhone}>{c.telephone}</Text>
+                            </View>
+                            {hasActive && (
+                              <View style={styles.zoneActiveIndicator}>
+                                <View style={[styles.zoneDot, { backgroundColor: z.couleur }]} />
+                                <Text style={[styles.zoneActiveText, { color: z.couleur }]}>En cours</Text>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                  {expandedZone === z.id && z.clients.length === 0 && (
+                    <View style={styles.zoneEmpty}>
+                      <Text style={styles.zoneEmptyText}>Aucun client géolocalisé dans cette zone</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </>
+          );
+        })()}
 
         {/* ── PARRAINAGE ── */}
         {activeTab === "parrainage" && (
@@ -1180,4 +1264,27 @@ const styles = StyleSheet.create({
   clientPromoCodeText: { fontSize: 11, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold", letterSpacing: 1 },
   clientNoCode: { fontSize: 11, color: Colors.border, fontFamily: "Inter_400Regular" },
   clientPromoPoints: { fontSize: 12, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+
+  // ── Zones tab ──
+  zonesHero: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: Colors.primaryLighter, borderRadius: 14, padding: 14, marginBottom: 4 },
+  zonesHeroText: { flex: 1, fontSize: 14, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
+  zonesHeroSub: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  zoneCard: { backgroundColor: Colors.white, borderRadius: 14, padding: 14, borderLeftWidth: 4, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 4 },
+  zoneCardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  zoneEmoji: { width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.background, alignItems: "center", justifyContent: "center" },
+  zoneName: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  zoneSub: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 2 },
+  zoneRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  activeOrderBadge: { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  activeOrderBadgeText: { fontSize: 11, fontWeight: "700", color: "white", fontFamily: "Inter_700Bold" },
+  zoneClientList: { marginTop: 12, gap: 8, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12 },
+  zoneClientRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  zoneClientAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.background, alignItems: "center", justifyContent: "center" },
+  zoneClientName: { fontSize: 13, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  zoneClientPhone: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 1 },
+  zoneActiveIndicator: { flexDirection: "row", alignItems: "center", gap: 4 },
+  zoneDot: { width: 8, height: 8, borderRadius: 4 },
+  zoneActiveText: { fontSize: 11, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
+  zoneEmpty: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.border },
+  zoneEmptyText: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular", textAlign: "center" },
 });
