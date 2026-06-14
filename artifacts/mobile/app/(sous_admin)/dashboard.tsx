@@ -1,17 +1,19 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Platform, RefreshControl, Image,
+  Platform, RefreshControl, Image, TextInput, ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
+import * as Location from "expo-location";
 import Colors from "@/constants/colors";
 import { useAuth, User } from "@/context/AuthContext";
 import { useOrders, Order, OrderStatus } from "@/context/OrderContext";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
 import ConfirmModal from "@/components/ConfirmModal";
 import * as Haptics from "expo-haptics";
+import { api } from "@/utils/api";
 
 const LIVREUR_PART = 400;
 
@@ -35,9 +37,63 @@ export default function SousAdminDashboard() {
   const [showLogout, setShowLogout] = useState(false);
   const [pendingAssign, setPendingAssign] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<{ orderId: string; status: OrderStatus } | null>(null);
-  const [activeTab, setActiveTab] = useState<"orders" | "recette">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "recette" | "marches">("orders");
   const [livreurs, setLivreurs] = useState<User[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
+
+  // ── Marchés ──
+  const [marches, setMarches] = useState<Array<{ id: string; nom: string; latitude: number; longitude: number }>>([]);
+  const [marcheNom, setMarcheNom] = useState("");
+  const [marcheCoords, setMarcheCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [marcheSaveLoading, setMarcheSaveLoading] = useState(false);
+  const [marcheError, setMarcheError] = useState("");
+  const [marcheSuccess, setMarcheSuccess] = useState("");
+
+  useEffect(() => {
+    if (activeTab === "marches") {
+      api.marches.getAll().then(({ marches: m }) => setMarches(m)).catch(() => {});
+    }
+  }, [activeTab]);
+
+  async function handleGPSMarche() {
+    setGpsLoading(true);
+    setMarcheError("");
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") { setMarcheError("Permission GPS refusée."); return; }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setMarcheCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+    } catch {
+      setMarcheError("Impossible d'obtenir la position GPS.");
+    } finally {
+      setGpsLoading(false);
+    }
+  }
+
+  async function handleAddMarche() {
+    if (!marcheNom.trim()) { setMarcheError("Le nom du marché est requis."); return; }
+    if (!marcheCoords) { setMarcheError("Capturez votre position GPS d'abord."); return; }
+    setMarcheError("");
+    setMarcheSaveLoading(true);
+    try {
+      const { marches: updated } = await api.marches.create({ nom: marcheNom.trim(), latitude: marcheCoords.latitude, longitude: marcheCoords.longitude });
+      setMarches(updated);
+      setMarcheNom("");
+      setMarcheCoords(null);
+      setMarcheSuccess("Marché ajouté !");
+      setTimeout(() => setMarcheSuccess(""), 3000);
+    } catch {
+      setMarcheError("Erreur lors de l'ajout du marché.");
+    } finally {
+      setMarcheSaveLoading(false);
+    }
+  }
+
+  async function handleDeleteMarche(id: string) {
+    await api.marches.delete(id).catch(() => {});
+    setMarches(prev => prev.filter(m => m.id !== id));
+  }
 
   useFocusEffect(useCallback(() => {
     refreshOrders();
@@ -99,7 +155,7 @@ export default function SousAdminDashboard() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.tabsRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border, flexGrow: 0 }} contentContainerStyle={styles.tabsRow}>
         <TouchableOpacity style={[styles.tab, activeTab === "orders" && styles.tabActive]} onPress={() => setActiveTab("orders")}>
           <Text style={[styles.tabText, activeTab === "orders" && styles.tabTextActive]}>
             Commandes ({allOrders.length})
@@ -110,7 +166,12 @@ export default function SousAdminDashboard() {
             Recette du jour
           </Text>
         </TouchableOpacity>
-      </View>
+        <TouchableOpacity style={[styles.tab, activeTab === "marches" && styles.tabActive]} onPress={() => setActiveTab("marches")}>
+          <Text style={[styles.tabText, activeTab === "marches" && styles.tabTextActive]}>
+            🏪 Marchés
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -218,6 +279,70 @@ export default function SousAdminDashboard() {
                 <Feather name="inbox" size={48} color={Colors.border} />
                 <Text style={styles.emptyText}>Aucune commande pour le moment</Text>
               </View>
+            )}
+          </>
+        )}
+        {/* ── MARCHÉS ── */}
+        {activeTab === "marches" && (
+          <>
+            <View style={styles.marcheFormCard}>
+              <Text style={styles.marcheFormTitle}>🏪 Ajouter un marché</Text>
+              {!!marcheError && (
+                <View style={styles.errBox}><Text style={styles.errText}>{marcheError}</Text></View>
+              )}
+              {!!marcheSuccess && (
+                <View style={styles.successBox}><Text style={styles.successText}>✓ {marcheSuccess}</Text></View>
+              )}
+              <Text style={styles.fieldLabel}>Nom du marché *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Marché de la Briqueterie"
+                placeholderTextColor={Colors.gray}
+                value={marcheNom}
+                onChangeText={setMarcheNom}
+              />
+              <TouchableOpacity
+                style={[styles.gpsBtn, marcheCoords ? styles.gpsBtnActive : null]}
+                onPress={handleGPSMarche}
+                disabled={gpsLoading}
+              >
+                {gpsLoading
+                  ? <ActivityIndicator color={Colors.white} size="small" />
+                  : <Feather name="navigation" size={16} color={marcheCoords ? Colors.primaryDark : Colors.white} />}
+                <Text style={[styles.gpsBtnText, marcheCoords ? { color: Colors.primaryDark } : null]}>
+                  {gpsLoading ? "Localisation…" : marcheCoords
+                    ? `GPS OK — ${marcheCoords.latitude.toFixed(4)}, ${marcheCoords.longitude.toFixed(4)}`
+                    : "Capturer ma position GPS"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, (!marcheCoords || !marcheNom.trim() || marcheSaveLoading) && { opacity: 0.5 }]}
+                onPress={handleAddMarche}
+                disabled={!marcheCoords || !marcheNom.trim() || marcheSaveLoading}
+              >
+                {marcheSaveLoading
+                  ? <ActivityIndicator color={Colors.white} />
+                  : <><Feather name="plus" size={18} color={Colors.white} /><Text style={styles.saveBtnText}>Enregistrer le marché</Text></>}
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.sectionTitle}>Marchés enregistrés ({marches.length})</Text>
+            {marches.length === 0 ? (
+              <View style={styles.empty}>
+                <Feather name="map" size={40} color={Colors.border} />
+                <Text style={styles.emptyText}>Aucun marché enregistré</Text>
+              </View>
+            ) : (
+              marches.map(m => (
+                <View key={m.id} style={styles.marcheCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.marcheCardName}>🏪 {m.nom}</Text>
+                    <Text style={styles.marcheCardCoords}>📍 {m.latitude.toFixed(5)}, {m.longitude.toFixed(5)}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleDeleteMarche(m.id)} style={{ padding: 8 }}>
+                    <Feather name="trash-2" size={18} color={Colors.red} />
+                  </TouchableOpacity>
+                </View>
+              ))
             )}
           </>
         )}
@@ -433,4 +558,23 @@ const styles = StyleSheet.create({
   assignPhone: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
   assignCancel: { padding: 14, alignItems: "center", borderTopWidth: 1, borderTopColor: Colors.border, marginTop: 4 },
   assignCancelText: { fontSize: 15, color: Colors.red, fontFamily: "Inter_600SemiBold" },
+
+  // ── Marchés tab ──
+  marcheFormCard: { backgroundColor: Colors.white, borderRadius: 18, padding: 18, gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3, borderWidth: 1.5, borderColor: Colors.primaryLighter },
+  marcheFormTitle: { fontSize: 16, fontWeight: "700", color: Colors.primary, fontFamily: "Inter_700Bold" },
+  errBox: { backgroundColor: "#FFEBEE", padding: 10, borderRadius: 10, borderLeftWidth: 3, borderLeftColor: Colors.red },
+  errText: { fontSize: 13, color: Colors.red, fontFamily: "Inter_400Regular" },
+  successBox: { backgroundColor: "#E8F5E9", padding: 10, borderRadius: 10, borderLeftWidth: 3, borderLeftColor: Colors.primary },
+  successText: { fontSize: 13, color: Colors.primaryDark, fontFamily: "Inter_600SemiBold" },
+  fieldLabel: { fontSize: 13, fontWeight: "600", color: Colors.text, fontFamily: "Inter_600SemiBold" },
+  input: { backgroundColor: Colors.background, borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, color: Colors.text, fontFamily: "Inter_400Regular" },
+  gpsBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16 },
+  gpsBtnActive: { backgroundColor: Colors.primaryLighter },
+  gpsBtnText: { fontSize: 14, fontWeight: "600", color: Colors.white, fontFamily: "Inter_600SemiBold", flex: 1 },
+  saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: Colors.primaryDark, borderRadius: 12, paddingVertical: 14 },
+  saveBtnText: { fontSize: 15, fontWeight: "700", color: Colors.white, fontFamily: "Inter_700Bold" },
+  marcheCard: { backgroundColor: Colors.white, borderRadius: 14, padding: 14, flexDirection: "row", alignItems: "center", gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  marcheCardName: { fontSize: 15, fontWeight: "700", color: Colors.text, fontFamily: "Inter_700Bold" },
+  marcheCardCoords: { fontSize: 12, color: Colors.textLight, fontFamily: "Inter_400Regular" },
+  deleteBtn: { padding: 8 },
 });

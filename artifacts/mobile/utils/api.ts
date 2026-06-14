@@ -97,5 +97,12 @@ export const api = {
   marches: {
     getAll: () =>
       apiFetch<{ marches: Array<{ id: string; nom: string; latitude: number; longitude: number }> }>("/marches"),
+    create: (body: { nom: string; latitude: number; longitude: number }) =>
+      apiFetch<{ marches: Array<{ id: string; nom: string; latitude: number; longitude: number }> }>("/marches", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    delete: (id: string) =>
+      apiFetch<{ success: boolean }>(`/marches/${id}`, { method: "DELETE" }),
   },
 };
