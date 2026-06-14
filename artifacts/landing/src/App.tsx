@@ -54,6 +54,11 @@ function Navbar() {
           color: scrolled ? "#555" : "rgba(255,255,255,0.85)",
           textDecoration: "none", transition: "color 0.2s",
         }}>Comment ça marche</a>
+        <a href="#tarifs" style={{
+          padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500,
+          color: scrolled ? "#555" : "rgba(255,255,255,0.85)",
+          textDecoration: "none", transition: "color 0.2s",
+        }}>Tarifs livraison</a>
         {user ? (
           <button onClick={() => navigate("/tableau-de-bord")} style={{
             padding: "8px 18px", borderRadius: 10,
@@ -499,6 +504,136 @@ function Download() {
   );
 }
 
+function TarifZones() {
+  const distanceRows = [
+    { zone: "Moins de 2 km", frais: "1 000 FCFA" },
+    { zone: "2 – 5 km", frais: "1 500 FCFA" },
+    { zone: "5 – 10 km", frais: "2 000 FCFA" },
+    { zone: "10 – 15 km", frais: "2 500 FCFA" },
+    { zone: "Plus de 15 km", frais: "3 000 FCFA" },
+  ];
+
+  const supplementRows = [
+    { tranche: "Jusqu'à 10 000 FCFA", supplement: "+ 750 FCFA" },
+    { tranche: "10 001 – 20 000 FCFA", supplement: "+ 1 000 FCFA" },
+    { tranche: "20 001 – 30 000 FCFA", supplement: "+ 1 500 FCFA" },
+    { tranche: "30 001 – 50 000 FCFA", supplement: "+ 2 000 FCFA" },
+    { tranche: "Plus de 50 000 FCFA", supplement: "+ 3 000 FCFA" },
+  ];
+
+  const thStyle: React.CSSProperties = {
+    textAlign: "left", padding: "10px 16px", fontSize: 13, fontWeight: 700,
+    color: GREEN_DARK, background: GREEN_LIGHT, borderBottom: `2px solid ${GREEN_MID}`,
+  };
+  const tdStyle: React.CSSProperties = {
+    padding: "10px 16px", fontSize: 14, color: "#333",
+    borderBottom: "1px solid #f0f0f0",
+  };
+  const tdRightStyle: React.CSSProperties = {
+    ...tdStyle, fontWeight: 700, color: GREEN_DARK, textAlign: "right",
+  };
+
+  return (
+    <section id="tarifs" style={{ padding: "80px 24px", background: "white" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <span style={{
+            display: "inline-block", padding: "6px 16px", borderRadius: 20,
+            background: GREEN_LIGHT, color: GREEN_DARK,
+            fontSize: 13, fontWeight: 700, marginBottom: 12, letterSpacing: 1,
+          }}>TARIFS DE LIVRAISON</span>
+          <h2 style={{ fontSize: "clamp(26px, 4vw, 40px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: -1 }}>
+            Frais calculés selon votre position GPS
+          </h2>
+          <p style={{ fontSize: 15, color: "#666", marginTop: 12, maxWidth: 540, margin: "12px auto 0" }}>
+            L'application Makit+ utilise votre position GPS pour calculer les frais de livraison depuis le marché le plus proche. Le tarif final combine la distance et le montant de votre commande.
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 32 }}>
+          <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07)", border: "1px solid #f0f0f0" }}>
+            <div style={{ background: GREEN, padding: "16px 20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>📍</span>
+                <div>
+                  <p style={{ fontWeight: 800, fontSize: 16, color: "white", margin: 0 }}>Frais selon la distance</p>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", margin: 0 }}>Depuis le marché le plus proche</p>
+                </div>
+              </div>
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", background: "white" }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Zone</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Frais de base</th>
+                </tr>
+              </thead>
+              <tbody>
+                {distanceRows.map((row) => (
+                  <tr key={row.zone} style={{ transition: "background 0.15s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = GREEN_LIGHT)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+                  >
+                    <td style={tdStyle}>{row.zone}</td>
+                    <td style={tdRightStyle}>{row.frais}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07)", border: "1px solid #f0f0f0" }}>
+            <div style={{ background: "#388E3C", padding: "16px 20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>🛒</span>
+                <div>
+                  <p style={{ fontWeight: 800, fontSize: 16, color: "white", margin: 0 }}>Supplément selon le montant</p>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", margin: 0 }}>S'ajoute aux frais de distance</p>
+                </div>
+              </div>
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", background: "white" }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Montant commande</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Supplément</th>
+                </tr>
+              </thead>
+              <tbody>
+                {supplementRows.map((row) => (
+                  <tr key={row.tranche} style={{ transition: "background 0.15s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = GREEN_LIGHT)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+                  >
+                    <td style={tdStyle}>{row.tranche}</td>
+                    <td style={tdRightStyle}>{row.supplement}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={{
+          background: GREEN_LIGHT, borderRadius: 14, padding: "18px 24px",
+          display: "flex", alignItems: "flex-start", gap: 14,
+          border: `1px solid ${GREEN_MID}`,
+        }}>
+          <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>ℹ️</span>
+          <div>
+            <p style={{ fontSize: 14, color: GREEN_DARK, fontWeight: 700, margin: "0 0 4px" }}>
+              Comment sont calculés vos frais ?
+            </p>
+            <p style={{ fontSize: 13, color: "#555", margin: 0, lineHeight: 1.7 }}>
+              L'app détecte votre position GPS et identifie le marché le plus proche parmi les 15 marchés couverts à Yaoundé. Le tarif final est la somme du frais de distance + le supplément selon le montant de vos courses. Si le GPS n'est pas disponible, seul le supplément est appliqué.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Footer() {
   return (
     <footer style={{
@@ -530,6 +665,7 @@ function LandingPage() {
       <PhotoGallery />
       <HowItWorks />
       <Features />
+      <TarifZones />
       <Stats />
       <Download />
       <Footer />

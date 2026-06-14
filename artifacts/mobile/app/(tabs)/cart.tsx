@@ -237,6 +237,18 @@ export default function CartScreen() {
             <Text style={styles.totalLabel}>Total à payer</Text>
             <Text style={styles.totalValue}>{totalFinal.toLocaleString()} FCFA</Text>
           </View>
+          <View style={user?.latitude && user?.longitude ? styles.gpsBannerOk : styles.gpsBannerWarn}>
+            <Feather
+              name={user?.latitude && user?.longitude ? "map-pin" : "alert-circle"}
+              size={13}
+              color={user?.latitude && user?.longitude ? Colors.primaryDark : "#E65100"}
+            />
+            <Text style={user?.latitude && user?.longitude ? styles.gpsBannerTextOk : styles.gpsBannerTextWarn}>
+              {user?.latitude && user?.longitude
+                ? "Livraison calculée selon votre position GPS"
+                : "Position GPS non disponible — frais de livraison estimés"}
+            </Text>
+          </View>
         </View>
 
         {/* Adresse */}
@@ -587,6 +599,38 @@ const styles = StyleSheet.create({
   },
   confirmBtnDisabled: { opacity: 0.7 },
   confirmBtnText: { color: Colors.white, fontSize: 17, fontWeight: "700", fontFamily: "Inter_700Bold" },
+  gpsBannerOk: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.primaryLighter,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 4,
+  },
+  gpsBannerWarn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FFF3E0",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 4,
+  },
+  gpsBannerTextOk: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.primaryDark,
+    fontFamily: "Inter_500Medium",
+  },
+  gpsBannerTextWarn: {
+    flex: 1,
+    fontSize: 12,
+    color: "#E65100",
+    fontFamily: "Inter_500Medium",
+  },
   emptyContainer: {
     flex: 1,
     alignItems: "center",
