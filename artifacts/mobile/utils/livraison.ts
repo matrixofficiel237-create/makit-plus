@@ -70,7 +70,7 @@ export function calculerFrais(
     ? supplementMontantSpecial(totalProduits)
     : supplementMontant(totalProduits);
 
-  if (!latitude || !longitude) return supplement;
+  if (!latitude || !longitude) return 1000 + supplement;
 
   const nearest = MARCHES.reduce((best, m) =>
     haversineKm(latitude, longitude, m.latitude, m.longitude) <
