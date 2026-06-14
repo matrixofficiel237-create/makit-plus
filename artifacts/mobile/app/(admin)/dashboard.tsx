@@ -1070,7 +1070,7 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 12, color: "rgba(255,255,255,0.8)", fontFamily: "Inter_400Regular" },
   logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
 
-  tabsScroll: { backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border, flexGrow: 0 },
+  tabsScroll: { backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border, flexGrow: 0, flexShrink: 0, minHeight: 48 },
   tabsRow: { flexDirection: "row", paddingHorizontal: 8 },
   tab: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabActive: { borderBottomColor: Colors.primary },
