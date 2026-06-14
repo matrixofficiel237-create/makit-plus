@@ -21,11 +21,6 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(telephone, motDePasse);
-      if (user.role !== "client") {
-        setError("Ce portail est réservé aux clients.");
-        setLoading(false);
-        return;
-      }
       setUser(user);
       navigate("/tableau-de-bord");
     } catch (err: unknown) {
@@ -50,7 +45,7 @@ export default function Login() {
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <img src={logoImg} alt="Makit+" style={{ width: 64, height: 64, borderRadius: 16, objectFit: "cover", marginBottom: 12 }} />
           <h1 style={{ fontSize: 26, fontWeight: 800, color: "#1a1a1a", marginBottom: 4 }}>Connexion</h1>
-          <p style={{ fontSize: 14, color: "#888" }}>Accédez à votre espace client Makit+</p>
+          <p style={{ fontSize: 14, color: "#888" }}>Accédez à votre espace Makit+</p>
         </div>
 
         {error && (
