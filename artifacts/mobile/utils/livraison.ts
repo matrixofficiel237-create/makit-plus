@@ -1,10 +1,10 @@
-interface Marche {
+export interface Marche {
   nom: string;
   latitude: number;
   longitude: number;
 }
 
-const MARCHES: Marche[] = [
+export const MARCHES_DEFAUT: Marche[] = [
   { nom: "Marché Mokolo",         latitude: 3.8693, longitude: 11.5100 },
   { nom: "Marché Mfoundi",        latitude: 3.8617, longitude: 11.5208 },
   { nom: "Marché Mvog-Mbi",       latitude: 3.8506, longitude: 11.5219 },
@@ -63,7 +63,8 @@ export function calculerFrais(
   latitude: number | null | undefined,
   longitude: number | null | undefined,
   totalProduits: number,
-  prixSpecial = false
+  prixSpecial = false,
+  marches: Marche[] = MARCHES_DEFAUT
 ): number {
   if (totalProduits <= 0) return 0;
   const supplement = prixSpecial
@@ -72,7 +73,8 @@ export function calculerFrais(
 
   if (!latitude || !longitude) return 1000 + supplement;
 
-  const nearest = MARCHES.reduce((best, m) =>
+  const liste = marches.length > 0 ? marches : MARCHES_DEFAUT;
+  const nearest = liste.reduce((best, m) =>
     haversineKm(latitude, longitude, m.latitude, m.longitude) <
     haversineKm(latitude, longitude, best.latitude, best.longitude) ? m : best
   );

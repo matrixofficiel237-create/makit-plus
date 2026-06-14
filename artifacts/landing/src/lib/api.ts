@@ -67,6 +67,32 @@ export async function register(payload: {
   return data.user;
 }
 
+export interface Marche {
+  id: string;
+  nom: string;
+  latitude: number;
+  longitude: number;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
+export async function getMarches(): Promise<Marche[]> {
+  const data = await request<{ marches: Marche[] }>("/marches");
+  return data.marches;
+}
+
+export async function createMarche(payload: { nom: string; latitude: number; longitude: number; createdBy?: string }): Promise<Marche> {
+  const data = await request<{ marche: Marche }>("/marches", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return data.marche;
+}
+
+export async function deleteMarche(id: string): Promise<void> {
+  await request(`/marches/${id}`, { method: "DELETE" });
+}
+
 export async function getOrders(userId: string): Promise<Order[]> {
   const data = await request<{ orders: Order[] }>(`/orders?userId=${userId}`);
   return data.orders;

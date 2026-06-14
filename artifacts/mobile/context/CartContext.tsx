@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
-import { calculerFrais } from "@/utils/livraison";
+import { calculerFrais, Marche } from "@/utils/livraison";
+import { api } from "@/utils/api";
 
 export interface Product {
   id: string;
@@ -33,7 +34,14 @@ const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [marches, setMarches] = useState<Marche[]>([]);
   const { user } = useAuth();
+
+  useEffect(() => {
+    api.marches.getAll().then(({ marches: m }) => {
+      if (m && m.length > 0) setMarches(m);
+    }).catch(() => {});
+  }, []);
 
   function addItem(product: Product, quantite: number = 1) {
     setItems((prev) => {
@@ -72,7 +80,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     0
   );
   const fraisLivraison = items.length > 0
-    ? calculerFrais(user?.latitude, user?.longitude, totalProduits, user?.prixSpecial ?? false)
+    ? calculerFrais(user?.latitude, user?.longitude, totalProduits, user?.prixSpecial ?? false, marches)
     : 0;
   const totalFinal = items.length > 0 ? totalProduits + fraisLivraison : 0;
   const count = items.reduce((sum, i) => sum + i.quantite, 0);

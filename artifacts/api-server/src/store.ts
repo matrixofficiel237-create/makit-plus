@@ -1,4 +1,4 @@
-import { db, usersTable, ordersTable, statsTable, referralHistoryTable, notificationsTable } from "@workspace/db";
+import { db, usersTable, ordersTable, statsTable, referralHistoryTable, notificationsTable, marchesTable } from "@workspace/db";
 import { eq, desc, inArray, sql } from "drizzle-orm";
 
 export type StoredUser = typeof usersTable.$inferSelect;
@@ -225,4 +225,19 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
 
 export async function deleteNotification(id: string): Promise<void> {
   await db.delete(notificationsTable).where(eq(notificationsTable.id, id));
+}
+
+// ── Marchés ──
+export async function getAllMarches() {
+  return db.select().from(marchesTable).orderBy(marchesTable.createdAt);
+}
+
+export async function createMarche(data: { nom: string; latitude: number; longitude: number; createdBy?: string }) {
+  const id = `marche-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const rows = await db.insert(marchesTable).values({ id, ...data }).returning();
+  return rows[0];
+}
+
+export async function deleteMarche(id: string): Promise<void> {
+  await db.delete(marchesTable).where(eq(marchesTable.id, id));
 }

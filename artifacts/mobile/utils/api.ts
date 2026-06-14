@@ -94,4 +94,8 @@ export const api = {
     delete: (id: string) =>
       apiFetch<{ success: boolean }>(`/notifications/${id}`, { method: "DELETE" }),
   },
+  marches: {
+    getAll: () =>
+      apiFetch<{ marches: Array<{ id: string; nom: string; latitude: number; longitude: number }> }>("/marches"),
+  },
 };

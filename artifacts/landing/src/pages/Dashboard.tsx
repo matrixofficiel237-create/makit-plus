@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useLocation } from "wouter";
-import { getOrders, type Order } from "../lib/api";
+import { getOrders, getMarches, createMarche, deleteMarche, type Order, type Marche } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import logoImg from "../assets/logo.jpg";
 
@@ -28,13 +28,25 @@ export default function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"commandes" | "carte">("commandes");
+  const [activeTab, setActiveTab] = useState<"commandes" | "carte" | "marches">("commandes");
 
   const isAdmin = user?.role === "admin" || user?.role === "sous_admin";
+
+  // Marchés states
+  const [marches, setMarches] = useState<Marche[]>([]);
+  const [marcheNom, setMarcheNom] = useState("");
+  const [marcheCoords, setMarcheCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [marcheError, setMarcheError] = useState("");
+  const [marcheSuccess, setMarcheSuccess] = useState("");
 
   useEffect(() => {
     if (!user) { navigate("/connexion"); return; }
     getOrders(user.id).then(o => { setOrders(o); setLoading(false); }).catch(() => setLoading(false));
+    if (isAdmin) {
+      getMarches().then(setMarches).catch(() => {});
+    }
   }, [user]);
 
   if (!user) return null;
@@ -42,6 +54,57 @@ export default function Dashboard() {
   function handleLogout() {
     logout();
     navigate("/");
+  }
+
+  async function handleGPSMarche() {
+    setGpsLoading(true);
+    setMarcheError("");
+    try {
+      await new Promise<void>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setMarcheCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            resolve();
+          },
+          () => reject(new Error("GPS refusé ou non disponible")),
+          { enableHighAccuracy: true, timeout: 12000 }
+        );
+      });
+    } catch (err: unknown) {
+      setMarcheError(err instanceof Error ? err.message : "GPS non disponible.");
+    } finally {
+      setGpsLoading(false);
+    }
+  }
+
+  async function handleAddMarche(e: React.FormEvent) {
+    e.preventDefault();
+    if (!marcheNom.trim()) { setMarcheError("Le nom du marché est requis."); return; }
+    if (!marcheCoords) { setMarcheError("Capturez votre position GPS d'abord."); return; }
+    setMarcheError("");
+    setSaveLoading(true);
+    try {
+      const m = await createMarche({
+        nom: marcheNom.trim(),
+        latitude: marcheCoords.latitude,
+        longitude: marcheCoords.longitude,
+        createdBy: user?.id,
+      });
+      setMarches(prev => [...prev, m]);
+      setMarcheNom("");
+      setMarcheCoords(null);
+      setMarcheSuccess("Marché ajouté avec succès !");
+      setTimeout(() => setMarcheSuccess(""), 3000);
+    } catch (err: unknown) {
+      setMarcheError(err instanceof Error ? err.message : "Erreur lors de l'ajout");
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
+  async function handleDeleteMarche(id: string) {
+    await deleteMarche(id).catch(() => {});
+    setMarches(prev => prev.filter(m => m.id !== id));
   }
 
   return (
@@ -90,11 +153,12 @@ export default function Dashboard() {
 
         {/* Admin tabs */}
         {isAdmin && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
             {([
               { key: "commandes", label: "📋 Commandes" },
               { key: "carte", label: "🗺️ Carte des clients" },
-            ] as { key: "commandes" | "carte"; label: string }[]).map(t => (
+              { key: "marches", label: "🏪 Marchés" },
+            ] as { key: "commandes" | "carte" | "marches"; label: string }[]).map(t => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
@@ -117,6 +181,130 @@ export default function Dashboard() {
           <Suspense fallback={<div style={{ textAlign: "center", padding: 40, color: "#888" }}>Chargement de la carte…</div>}>
             <AdminMapView />
           </Suspense>
+        )}
+
+        {/* Marchés tab (admin only) */}
+        {isAdmin && activeTab === "marches" && (
+          <div>
+            {/* Form */}
+            <div style={{ background: "white", borderRadius: 20, padding: 28, marginBottom: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: "#1a1a1a" }}>➕ Ajouter un marché</h2>
+              <form onSubmit={handleAddMarche} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {marcheError && (
+                  <div style={{ background: "#FFEBEE", color: "#C62828", padding: "10px 14px", borderRadius: 10, fontSize: 14 }}>
+                    {marcheError}
+                  </div>
+                )}
+                {marcheSuccess && (
+                  <div style={{ background: GREEN_LIGHT, color: GREEN_DARK, padding: "10px 14px", borderRadius: 10, fontSize: 14 }}>
+                    ✓ {marcheSuccess}
+                  </div>
+                )}
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "#444", marginBottom: 6, display: "block" }}>
+                    Nom du marché *
+                  </label>
+                  <input
+                    type="text"
+                    value={marcheNom}
+                    onChange={e => setMarcheNom(e.target.value)}
+                    placeholder="Ex: Marché de la Briqueterie"
+                    style={{
+                      width: "100%", padding: "12px 16px", borderRadius: 12,
+                      border: "2px solid #eee", fontSize: 15, outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                    onFocus={e => (e.target.style.borderColor = GREEN)}
+                    onBlur={e => (e.target.style.borderColor = "#eee")}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGPSMarche}
+                  disabled={gpsLoading}
+                  style={{
+                    padding: "13px 16px", borderRadius: 12, fontWeight: 700, fontSize: 14,
+                    cursor: gpsLoading ? "not-allowed" : "pointer",
+                    border: marcheCoords ? `2px solid ${GREEN}` : "none",
+                    background: marcheCoords ? GREEN_LIGHT : GREEN,
+                    color: marcheCoords ? GREEN_DARK : "white",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  {gpsLoading
+                    ? "📡 Localisation en cours..."
+                    : marcheCoords
+                    ? `✓ GPS capturé — ${marcheCoords.latitude.toFixed(5)}, ${marcheCoords.longitude.toFixed(5)}`
+                    : "📡 Capturer ma position GPS"}
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saveLoading || !marcheCoords || !marcheNom.trim()}
+                  style={{
+                    padding: "14px", borderRadius: 12, fontWeight: 700, fontSize: 15,
+                    border: "none",
+                    cursor: (saveLoading || !marcheCoords || !marcheNom.trim()) ? "not-allowed" : "pointer",
+                    background: (saveLoading || !marcheCoords || !marcheNom.trim()) ? "#ccc" : GREEN_DARK,
+                    color: "white",
+                  }}
+                >
+                  {saveLoading ? "Enregistrement..." : "Enregistrer le marché"}
+                </button>
+              </form>
+            </div>
+
+            {/* List */}
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 16 }}>
+              🏪 Marchés enregistrés{" "}
+              {marches.length > 0 && (
+                <span style={{ color: "#888", fontWeight: 400, fontSize: 14 }}>({marches.length})</span>
+              )}
+            </h2>
+            {marches.length === 0 ? (
+              <div style={{
+                background: "white", borderRadius: 20, padding: 40,
+                textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
+                <p style={{ color: "#888", fontSize: 15 }}>Aucun marché enregistré.</p>
+                <p style={{ color: "#bbb", fontSize: 13, marginTop: 8 }}>
+                  Utilisez le formulaire ci-dessus pour ajouter votre premier marché.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {marches.map(m => (
+                  <div key={m.id} style={{
+                    background: "white", borderRadius: 14, padding: "16px 20px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                  }}>
+                    <div>
+                      <p style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a", marginBottom: 4 }}>
+                        🏪 {m.nom}
+                      </p>
+                      <p style={{ fontSize: 12, color: "#888" }}>
+                        📍 {m.latitude.toFixed(5)}, {m.longitude.toFixed(5)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteMarche(m.id)}
+                      style={{
+                        padding: "6px 14px", borderRadius: 8,
+                        background: "#FFEBEE", color: "#C62828",
+                        fontWeight: 600, fontSize: 12, border: "none", cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Orders tab */}

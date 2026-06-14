@@ -3,3 +3,4 @@ export * from "./orders";
 export * from "./stats";
 export * from "./referrals";
 export * from "./notifications";
+export * from "./marches";
