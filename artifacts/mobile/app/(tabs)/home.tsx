@@ -98,16 +98,17 @@ function HeroCarousel({ onOrder, onNotifs, onCart, userName, cartCount, unreadCo
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        {/* Texte ancré en bas à gauche — bouge avec la photo */}
-        <View style={heroStyles.textBlock}>
-          <Text style={heroStyles.title}>{slide.title}</Text>
-          <Text style={heroStyles.accent}>{slide.accent}</Text>
-          <Text style={heroStyles.desc}>{slide.desc}</Text>
-          <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
-            <Feather name="shopping-bag" size={16} color="#FFF" />
-            <Text style={heroStyles.btnText}>Commander maintenant</Text>
-          </TouchableOpacity>
+        {/* Zone texte — position fixe, le bouton est séparé */}
+        <View style={heroStyles.textZone}>
+          <Text style={heroStyles.title} numberOfLines={3}>{slide.title}</Text>
+          <Text style={heroStyles.accent} numberOfLines={2}>{slide.accent}</Text>
+          <Text style={heroStyles.desc} numberOfLines={2}>{slide.desc}</Text>
         </View>
+        {/* Bouton — position absolue indépendante, ne bougera jamais */}
+        <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
+          <Feather name="shopping-bag" size={16} color="#FFF" />
+          <Text style={heroStyles.btnText}>Commander maintenant</Text>
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Header — toujours visible, ne fade pas */}
@@ -221,56 +222,58 @@ const heroStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
   },
-  textBlock: {
+  // Zone texte : position fixe au-dessus du bouton
+  textZone: {
     position: "absolute",
-    bottom: 36,
+    bottom: 120,
     left: 20,
-    right: "42%",
-    maxHeight: 220,
-    gap: 2,
+    right: "40%",
   },
   title: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: "800",
     color: "#FFFFFF",
     fontFamily: "Inter_700Bold",
-    lineHeight: 36,
-    textShadowColor: "rgba(0,0,0,0.55)",
+    lineHeight: 34,
+    textShadowColor: "rgba(0,0,0,0.6)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 4,
+    marginBottom: 4,
   },
   accent: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
-    color: "#5EE85E",
+    color: "#6EE86E",
     fontFamily: "Inter_700Bold",
-    marginBottom: 6,
     textShadowColor: "rgba(0,0,0,0.4)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+    marginBottom: 8,
   },
   desc: {
     fontSize: 13,
     color: "rgba(255,255,255,0.92)",
     fontFamily: "Inter_400Regular",
-    marginBottom: 16,
     lineHeight: 18,
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
+  // Bouton : position absolue indépendante — NE BOUGERA JAMAIS
   btn: {
+    position: "absolute",
+    bottom: 55,
+    left: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: Colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
     borderRadius: 28,
-    alignSelf: "flex-start",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
   },
