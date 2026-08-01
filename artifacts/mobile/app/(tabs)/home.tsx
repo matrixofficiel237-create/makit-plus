@@ -152,7 +152,7 @@ function HeroCarousel({ onOrder, onNotifs, onCart, userName, cartCount, unreadCo
 const heroStyles = StyleSheet.create({
   wrapper: {
     width: "100%",
-    height: 420,
+    height: 470,
   },
   photoWrap: {
     ...StyleSheet.absoluteFillObject,
