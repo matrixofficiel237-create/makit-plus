@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -9,20 +10,14 @@
 }
 
 @layer base {
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  html {
-    scroll-behavior: smooth;
-  }
-
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #ffffff;
+    font-family: 'Outfit', sans-serif;
+    background-color: #FAFAFA;
+    -webkit-font-smoothing: antialiased;
     color: #1a1a1a;
-    line-height: 1.6;
   }
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at top center, #4CAF50 0%, #2E7D32 100%);
 }

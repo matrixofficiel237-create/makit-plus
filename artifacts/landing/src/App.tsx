@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, ReactNode } from "react";
 import { Router, Switch, Route, useLocation } from "wouter";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -11,6 +11,23 @@ import appShowcase from "./assets/app-showcase.png";
 import promoLivreur from "./assets/promo-livreur.png";
 import promoFamily from "./assets/promo-family.png";
 
+import { 
+  ShoppingCart, 
+  Truck, 
+  Banknote, 
+  Smartphone, 
+  MapPin, 
+  CheckCircle2, 
+  Clock, 
+  ShieldCheck,
+  Download as DownloadIcon,
+  Globe,
+  Quote,
+  MessageCircle,
+  Mail,
+  Phone
+} from "lucide-react";
+
 const APK_DOWNLOAD_URL = "https://github.com/matrixofficiel237-create/makit-plus/releases/download/latest/Makit-Plus.apk";
 const API_STATS_BASE = typeof window !== "undefined"
   ? `${window.location.origin}/api`
@@ -20,65 +37,61 @@ function downloadApk() {
   window.open(APK_DOWNLOAD_URL, "_blank", "noopener");
 }
 
-const GREEN = "#4CAF50";
-const GREEN_DARK = "#388E3C";
-const GREEN_LIGHT = "#E8F5E9";
-const GREEN_MID = "#A5D6A7";
+function Reveal({ children, delay = 0, className = "" }: { children: ReactNode, delay?: number, className?: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.1 });
+    
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "translateY(0)" : "translateY(40px)",
+        transition: `all 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
   }, []);
+  
   return (
-    <nav style={{
-      position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-      background: scrolled ? "rgba(255,255,255,0.97)" : "transparent",
-      boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.08)" : "none",
-      transition: "all 0.3s ease",
-      padding: "0 24px",
-      height: 64,
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <img src={logoImg} alt="Makit+" style={{ width: 38, height: 38, borderRadius: 10, objectFit: "cover" }} />
-        <span style={{ fontSize: 20, fontWeight: 700, color: scrolled ? "#1a1a1a" : "white" }}>Makit+</span>
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 lg:px-12 h-20 flex items-center justify-between ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'}`}>
+      <div className="flex items-center gap-3">
+        <img src={logoImg} alt="Makit+" className="w-10 h-10 rounded-xl object-cover shadow-sm" />
+        <span className={`text-2xl font-black tracking-tight ${scrolled ? 'text-gray-900' : 'text-white drop-shadow-md'}`}>Makit+</span>
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <a href="#fonctionnement" style={{
-          padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500,
-          color: scrolled ? "#555" : "rgba(255,255,255,0.85)",
-          textDecoration: "none", transition: "color 0.2s",
-        }}>Comment ça marche</a>
-        <a href="#tarifs" style={{
-          padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500,
-          color: scrolled ? "#555" : "rgba(255,255,255,0.85)",
-          textDecoration: "none", transition: "color 0.2s",
-        }}>Tarifs livraison</a>
-        {user ? (
-          <button onClick={() => navigate("/tableau-de-bord")} style={{
-            padding: "8px 18px", borderRadius: 10,
-            background: scrolled ? GREEN : "white",
-            color: scrolled ? "white" : GREEN,
-            fontSize: 14, fontWeight: 700,
-            border: "none", cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          }}>Mon espace</button>
-        ) : (
-          <button onClick={() => navigate("/connexion")} style={{
-            padding: "8px 18px", borderRadius: 10,
-            background: scrolled ? GREEN : "white",
-            color: scrolled ? "white" : GREEN,
-            fontSize: 14, fontWeight: 700,
-            border: "none", cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            transition: "all 0.2s",
-          }}>Se connecter</button>
-        )}
+      <div className="flex items-center gap-6">
+        <a href="#fonctionnement" className={`hidden md:block font-bold text-sm transition-colors ${scrolled ? 'text-gray-600 hover:text-primary' : 'text-white/90 hover:text-white drop-shadow-sm'}`}>
+          Comment ça marche
+        </a>
+        <button onClick={() => navigate(user ? "/tableau-de-bord" : "/connexion")} className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all shadow-lg hover:scale-105 ${scrolled ? 'bg-primary text-white hover:bg-primary-dark' : 'bg-white text-primary hover:bg-primary-lighter'}`}>
+          {user ? "Mon espace" : "Se connecter"}
+        </button>
       </div>
     </nav>
   );
@@ -90,18 +103,26 @@ function HeroOrderButton() {
   return (
     <button
       onClick={() => navigate(user ? "/tableau-de-bord" : "/connexion")}
-      style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "14px 24px", borderRadius: 14,
-        border: "2px solid rgba(255,255,255,0.6)",
-        background: "rgba(255,255,255,0.12)",
-        color: "white", fontWeight: 700, fontSize: 16, cursor: "pointer",
-        backdropFilter: "blur(4px)",
-      }}
+      className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-full border-2 border-white/30 bg-white/10 text-white font-bold text-lg hover:bg-white/20 transition-all backdrop-blur-md shadow-xl group"
     >
-      <span style={{ fontSize: 20 }}>🌐</span>
+      <Globe className="w-6 h-6 group-hover:rotate-12 transition-transform" />
       Commander en ligne
     </button>
+  );
+}
+
+function VisitorCounter({ visitors }: { visitors: number | null }) {
+  if (visitors === null) return null;
+  return (
+    <div className="mt-12 inline-flex items-center gap-3 bg-black/20 backdrop-blur-xl border border-white/10 rounded-full px-5 py-2.5 text-white/90 font-medium text-sm shadow-2xl">
+      <span className="relative flex h-3 w-3">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#69F0AE] opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-3 w-3 bg-[#69F0AE]"></span>
+      </span>
+      <span>
+        {visitors.toLocaleString("fr-FR")} visiteur{visitors > 1 ? "s" : ""} sur ce site
+      </span>
+    </div>
   );
 }
 
@@ -116,148 +137,85 @@ function Hero() {
   }, []);
 
   return (
-    <section style={{
-      minHeight: "100vh",
-      background: `linear-gradient(135deg, ${GREEN_DARK} 0%, ${GREEN} 60%, #81C784 100%)`,
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      textAlign: "center", padding: "80px 24px 60px",
-      position: "relative", overflow: "hidden",
-    }}>
-      <div style={{
-        position: "absolute", top: -100, right: -100,
-        width: 400, height: 400, borderRadius: "50%",
-        background: "rgba(255,255,255,0.05)",
-      }} />
-      <div style={{
-        position: "absolute", bottom: -80, left: -80,
-        width: 300, height: 300, borderRadius: "50%",
-        background: "rgba(255,255,255,0.05)",
-      }} />
+    <section className="relative min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden px-6 pt-32 pb-20 hero-gradient">
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/5 rounded-full blur-3xl pointer-events-none translate-x-1/3 -translate-y-1/3" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-black/10 rounded-full blur-3xl pointer-events-none -translate-x-1/3 translate-y-1/3" />
+      
+      <div className="relative z-10 flex flex-col items-center text-center max-w-5xl mx-auto w-full">
+        <Reveal>
+          <img src={logoImg} alt="Makit+ Logo" className="w-24 h-24 md:w-28 md:h-28 rounded-3xl shadow-2xl mb-8 object-cover border-4 border-white/20" />
+        </Reveal>
+        
+        <Reveal delay={100} className="w-full">
+          <h1 className="text-6xl md:text-8xl lg:text-[140px] font-black text-white tracking-tighter leading-[0.9] mb-8 drop-shadow-2xl">
+            Makit<span className="text-primary-light">+</span>
+          </h1>
+        </Reveal>
+        
+        <Reveal delay={200}>
+          <p className="text-xl md:text-3xl text-white font-semibold max-w-3xl mx-auto mb-10 leading-snug tracking-tight drop-shadow-md">
+            Le marché qui vient directement chez vous.
+          </p>
+        </Reveal>
 
-      <img src={logoImg} alt="Makit+" style={{
-        width: 110, height: 110, borderRadius: 28,
-        objectFit: "cover",
-        marginBottom: 24, boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-      }} />
-
-      <h1 style={{
-        fontSize: "clamp(40px, 7vw, 72px)", fontWeight: 900,
-        color: "white", marginBottom: 16, letterSpacing: -2,
-        lineHeight: 1.1,
-      }}>Makit+</h1>
-
-      <p style={{
-        fontSize: "clamp(18px, 2.5vw, 24px)", color: "rgba(255,255,255,0.9)",
-        maxWidth: 560, marginBottom: 8, fontWeight: 500,
-      }}>
-        Vos courses livrées à domicile
-      </p>
-      <p style={{
-        fontSize: 16, color: "rgba(255,255,255,0.75)",
-        maxWidth: 480, marginBottom: 40,
-      }}>
-        Créez votre liste de courses, passez commande et recevez vos achats directement chez vous.
-      </p>
-
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-        <button onClick={downloadApk} style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "14px 28px", borderRadius: 14,
-          background: "white", color: GREEN,
-          fontWeight: 800, fontSize: 16, border: "none", cursor: "pointer",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-          transition: "transform 0.2s",
-        }}>
-          <span style={{ fontSize: 22 }}>📱</span>
-          Télécharger l'APK Android
-        </button>
-        <HeroOrderButton />
+        <Reveal delay={300} className="w-full flex flex-col sm:flex-row items-center justify-center gap-4">
+          <HeroOrderButton />
+          <button onClick={downloadApk} className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-white text-primary-dark font-bold text-lg hover:scale-105 transition-transform shadow-2xl group">
+            <Smartphone className="w-6 h-6 group-hover:-translate-y-1 transition-transform" />
+            Télécharger l'App
+          </button>
+        </Reveal>
+        
+        <Reveal delay={400}>
+          <VisitorCounter visitors={visitors} />
+        </Reveal>
       </div>
 
-      <div style={{
-        display: "flex", gap: 32, marginTop: 60,
-        color: "rgba(255,255,255,0.85)", flexWrap: "wrap", justifyContent: "center",
-      }}>
-        {[
-          { icon: "🛒", label: "Courses en ligne" },
-          { icon: "🚚", label: "Livraison rapide" },
-          { icon: "💵", label: "Paiement à la livraison" },
-        ].map((item) => (
-          <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15 }}>
-            <span style={{ fontSize: 22 }}>{item.icon}</span>
-            <span style={{ fontWeight: 500 }}>{item.label}</span>
-          </div>
-        ))}
+      <div className="absolute bottom-10 left-0 right-0 hidden lg:flex justify-center gap-12 text-white/90 font-bold text-sm tracking-wide">
+        <div className="flex items-center gap-2 drop-shadow-md"><ShoppingCart size={20} /> Courses en ligne</div>
+        <div className="flex items-center gap-2 drop-shadow-md"><Truck size={20} /> Livraison rapide</div>
+        <div className="flex items-center gap-2 drop-shadow-md"><Banknote size={20} /> Paiement à la livraison</div>
       </div>
-
-      {visitors !== null && (
-        <div style={{
-          marginTop: 32,
-          display: "inline-flex", alignItems: "center", gap: 10,
-          background: "rgba(255,255,255,0.15)",
-          backdropFilter: "blur(8px)",
-          border: "1px solid rgba(255,255,255,0.25)",
-          borderRadius: 40,
-          padding: "10px 22px",
-          color: "white",
-          fontSize: 14,
-          fontWeight: 600,
-          letterSpacing: 0.2,
-        }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: "50%",
-            background: "#69F0AE",
-            boxShadow: "0 0 6px #69F0AE",
-            display: "inline-block",
-          }} />
-          <span>
-            {visitors.toLocaleString("fr-FR")} visiteur{visitors > 1 ? "s" : ""} sur ce site
-          </span>
-        </div>
-      )}
     </section>
   );
 }
 
 function PromoHero() {
   return (
-    <section style={{ padding: "0", background: "#fff", overflow: "hidden" }}>
-      <div style={{ position: "relative", width: "100%", maxHeight: 480 }}>
-        <img
-          src={promoDelivery}
-          alt="Livraison Makit+"
-          style={{ width: "100%", height: 480, objectFit: "cover", display: "block" }}
-        />
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(to right, rgba(56,142,60,0.7) 0%, rgba(0,0,0,0.1) 100%)",
-          display: "flex", alignItems: "center", padding: "0 48px",
-        }}>
-          <div style={{ color: "white", maxWidth: 500 }}>
-            <p style={{
-              fontSize: 13, fontWeight: 700, letterSpacing: 2,
-              color: "#A5D6A7", marginBottom: 12, textTransform: "uppercase",
-            }}>Service de livraison à domicile</p>
-            <h2 style={{
-              fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 900,
-              lineHeight: 1.15, marginBottom: 20, letterSpacing: -1,
-            }}>
-              Vos courses livrées<br />directement chez vous
-            </h2>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", marginBottom: 28, lineHeight: 1.7 }}>
-              Plus besoin de se déplacer au marché. Commandez depuis votre téléphone et recevez vos achats à domicile.
-            </p>
-            <button onClick={downloadApk} style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              padding: "13px 24px", borderRadius: 12,
-              background: GREEN, color: "white",
-              fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
-            }}>
-              ⬇️ Télécharger l'app
-            </button>
+    <section className="py-24 px-6 bg-white overflow-hidden">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
+        <Reveal className="w-full lg:w-1/2 relative">
+          <div className="absolute inset-0 bg-primary/10 translate-x-4 translate-y-4 rounded-[2rem] -z-10"></div>
+          <img src={promoDelivery} alt="Livraison Makit+" className="w-full aspect-square md:aspect-[4/3] object-cover rounded-[2rem] shadow-2xl" />
+          <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-2xl shadow-xl max-w-[200px] hidden md:block border border-gray-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-primary-lighter flex items-center justify-center text-primary">
+                <CheckCircle2 size={24} />
+              </div>
+              <span className="font-bold text-gray-900 leading-tight">Qualité<br/>Garantie</span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium">Sélectionnés avec soin le matin même.</p>
           </div>
+        </Reveal>
+        
+        <div className="w-full lg:w-1/2 space-y-8">
+          <Reveal delay={100}>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary-lighter text-primary-dark font-bold text-xs uppercase tracking-widest mb-4">Service de livraison à domicile</span>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.1] tracking-tight mt-2">
+              Vos courses livrées directement chez vous.
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="text-lg text-gray-600 leading-relaxed font-medium">
+              Plus besoin de se déplacer au marché, d'affronter la foule ou les bouchons. Makit+ sélectionne pour vous les meilleurs produits frais et vous les apporte à votre porte.
+            </p>
+          </Reveal>
+          <Reveal delay={300}>
+            <button onClick={downloadApk} className="flex items-center gap-3 px-8 py-4 bg-gray-900 text-white rounded-full font-bold text-lg hover:bg-gray-800 hover:-translate-y-1 transition-all shadow-xl">
+              <DownloadIcon size={20} />
+              Télécharger l'application
+            </button>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -266,35 +224,40 @@ function PromoHero() {
 
 function PhotoGallery() {
   return (
-    <section style={{ padding: "72px 24px", background: "#fafafa" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <span style={{
-            display: "inline-block", padding: "6px 16px", borderRadius: 20,
-            background: GREEN_LIGHT, color: GREEN_DARK,
-            fontSize: 13, fontWeight: 700, marginBottom: 12, letterSpacing: 1,
-          }}>NOTRE SERVICE</span>
-          <h2 style={{ fontSize: "clamp(26px, 4vw, 40px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: -1 }}>
-            Rapide, fiable, proche de vous
-          </h2>
+    <section className="py-24 px-6 bg-primary-lighter/30">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <Reveal>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary-dark font-bold text-xs uppercase tracking-widest mb-4">Notre Service</span>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">Proche, rapide et humain</h2>
+            <p className="text-gray-600 text-lg mt-6 font-medium">Nous mettons un point d'honneur à vous offrir un service de qualité, avec des livreurs de confiance.</p>
+          </Reveal>
         </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <div style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-            <img src={promoLivreur} alt="Livreur Makit+" style={{ width: "100%", height: 280, objectFit: "cover", display: "block" }} />
-            <div style={{ background: "white", padding: "20px 24px" }}>
-              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>🚚 Livraison rapide</h3>
-              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>Nos livreurs expérimentés récupèrent et livrent vos articles rapidement partout dans la ville.</p>
+        
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+          <Reveal delay={100} className="group rounded-[2rem] overflow-hidden bg-white shadow-xl hover:shadow-2xl transition-all relative">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none"></div>
+            <img src={promoLivreur} className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-700" alt="Livreur" />
+            <div className="absolute bottom-0 left-0 right-0 p-8 z-20">
+              <div className="flex items-center gap-4 text-white mb-4">
+                <div className="p-3 bg-primary rounded-xl backdrop-blur-md"><Truck size={28} /></div>
+                <h3 className="text-3xl font-black tracking-tight">Livraison Rapide</h3>
+              </div>
+              <p className="text-white/90 font-medium text-lg leading-snug">Nos livreurs connaissent Yaoundé comme leur poche pour vous garantir un délai optimal.</p>
             </div>
-          </div>
-
-          <div style={{ borderRadius: 20, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-            <img src={promoFamily} alt="Famille Makit+" style={{ width: "100%", height: 280, objectFit: "cover", display: "block" }} />
-            <div style={{ background: "white", padding: "20px 24px" }}>
-              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#1a1a1a", marginBottom: 6 }}>🏠 À votre porte</h3>
-              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>Recevez vos produits frais directement chez vous, sans vous déplacer.</p>
+          </Reveal>
+          
+          <Reveal delay={200} className="group rounded-[2rem] overflow-hidden bg-white shadow-xl hover:shadow-2xl transition-all relative">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none"></div>
+            <img src={promoFamily} className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-700" alt="Famille" />
+            <div className="absolute bottom-0 left-0 right-0 p-8 z-20">
+              <div className="flex items-center gap-4 text-white mb-4">
+                <div className="p-3 bg-[#E65100] rounded-xl backdrop-blur-md"><MapPin size={28} /></div>
+                <h3 className="text-3xl font-black tracking-tight">À votre porte</h3>
+              </div>
+              <p className="text-white/90 font-medium text-lg leading-snug">Profitez de vos proches pendant que nous nous chargeons de faire vos courses.</p>
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -303,44 +266,32 @@ function PhotoGallery() {
 
 function HowItWorks() {
   const steps = [
-    { num: "1", icon: "📝", title: "Créez votre liste", desc: "Parcourez le catalogue et ajoutez vos articles au panier directement depuis votre téléphone." },
-    { num: "2", icon: "📍", title: "Indiquez votre adresse", desc: "Précisez votre quartier et rue de livraison. Choisissez paiement à la livraison ou Mobile Money." },
-    { num: "3", icon: "🚀", title: "Commande passée !", desc: "Un livreur prend en charge votre commande, effectue les achats et vous livre directement à domicile." },
+    { num: "01", icon: <ShoppingCart size={36}/>, title: "Créez votre liste", desc: "Parcourez notre catalogue complet et ajoutez vos articles au panier en un clic." },
+    { num: "02", icon: <MapPin size={36}/>, title: "Indiquez l'adresse", desc: "Renseignez votre quartier à Yaoundé et choisissez votre mode de paiement (Cash ou Mobile Money)." },
+    { num: "03", icon: <Truck size={36}/>, title: "On s'occupe du reste", desc: "Un livreur effectue les achats et vous livre chez vous dans les plus brefs délais." },
   ];
 
   return (
-    <section id="fonctionnement" style={{ padding: "80px 24px", background: "#fafafa" }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <span style={{
-            display: "inline-block", padding: "6px 16px", borderRadius: 20,
-            background: GREEN_LIGHT, color: GREEN_DARK,
-            fontSize: 13, fontWeight: 700, marginBottom: 12, letterSpacing: 1,
-          }}>COMMENT ÇA MARCHE</span>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: -1 }}>
-            Simple, rapide, fiable
-          </h2>
-        </div>
+    <section id="fonctionnement" className="py-24 px-6 bg-white overflow-hidden">
+      <div className="max-w-7xl mx-auto">
+        <Reveal className="text-center max-w-2xl mx-auto mb-20">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary-lighter text-primary-dark font-bold text-xs uppercase tracking-widest mb-4">Processus</span>
+          <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">Comment ça marche ?</h2>
+          <p className="text-gray-600 mt-6 text-lg font-medium">Trois étapes simples pour recevoir vos courses sans quitter votre domicile.</p>
+        </Reveal>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 24 }}>
-          {steps.map((step) => (
-            <div key={step.num} style={{
-              background: "white", borderRadius: 20, padding: "32px 28px",
-              boxShadow: "0 2px 20px rgba(0,0,0,0.06)",
-              border: "1px solid #f0f0f0",
-              position: "relative",
-            }}>
-              <div style={{
-                position: "absolute", top: 24, right: 24,
-                width: 32, height: 32, borderRadius: "50%",
-                background: GREEN_LIGHT, color: GREEN_DARK,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 800, fontSize: 14,
-              }}>{step.num}</div>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>{step.icon}</div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 10 }}>{step.title}</h3>
-              <p style={{ fontSize: 14, color: "#666", lineHeight: 1.7 }}>{step.desc}</p>
-            </div>
+        <div className="grid md:grid-cols-3 gap-12 relative">
+          <div className="hidden md:block absolute top-16 left-[15%] right-[15%] h-1 bg-gray-100 border-t-2 border-dashed border-gray-200 z-0"></div>
+          
+          {steps.map((step, i) => (
+            <Reveal key={step.num} delay={i * 150} className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-28 h-28 rounded-[2rem] bg-primary-lighter flex items-center justify-center text-primary mb-8 shadow-[0_0_0_12px_rgba(255,255,255,1)] relative rotate-3 hover:rotate-0 transition-transform">
+                <span className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-base shadow-lg">{step.num}</span>
+                {step.icon}
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-4">{step.title}</h3>
+              <p className="text-gray-600 leading-relaxed max-w-[280px] font-medium">{step.desc}</p>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -351,65 +302,43 @@ function HowItWorks() {
 function Features() {
   const features = [
     {
-      icon: "🛒",
-      title: "Faites vos courses",
-      color: GREEN,
-      bg: GREEN_LIGHT,
-      items: ["Créez votre liste de courses en quelques clics", "Ajoutez tous vos articles au panier facilement", "Modifiez votre commande avant validation", "Consultez l'historique de vos commandes"],
+      icon: <ShoppingCart size={32} />, title: "Faites vos courses", color: "text-primary", bg: "bg-primary-lighter", border: "border-primary-light",
+      items: ["Créez votre liste de courses en clics", "Ajoutez tous vos articles facilement", "Historique de vos commandes"]
     },
     {
-      icon: "📍",
-      title: "Livraison chez vous",
-      color: "#E65100",
-      bg: "#FBE9E7",
-      items: ["Indiquez votre adresse de livraison", "Choisissez votre heure de livraison préférée", "Suivez le statut de votre commande en temps réel", "Recevez vos courses à votre porte"],
+      icon: <MapPin size={32} />, title: "Livraison chez vous", color: "text-[#E65100]", bg: "bg-[#FBE9E7]", border: "border-[#FFCCBC]",
+      items: ["Indiquez votre adresse à Yaoundé", "Suivez votre commande en direct", "Recevez vos courses à la porte"]
     },
     {
-      icon: "💳",
-      title: "Paiement simple",
-      color: "#1565C0",
-      bg: "#E3F2FD",
-      items: ["Payez directement à la livraison", "Aucune avance requise", "Service fiable et sécurisé", "Disponible partout dans la ville"],
-    },
+      icon: <Banknote size={32} />, title: "Paiement simple", color: "text-[#1565C0]", bg: "bg-[#E3F2FD]", border: "border-[#BBDEFB]",
+      items: ["Payez directement à la livraison", "Mobile Money accepté sans frais", "Service fiable et 100% sécurisé"]
+    }
   ];
 
   return (
-    <section style={{ padding: "80px 24px", background: "white" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <span style={{
-            display: "inline-block", padding: "6px 16px", borderRadius: 20,
-            background: GREEN_LIGHT, color: GREEN_DARK,
-            fontSize: 13, fontWeight: 700, marginBottom: 12, letterSpacing: 1,
-          }}>FONCTIONNALITÉS</span>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: -1 }}>
-            Une app pour tout le monde
-          </h2>
-        </div>
+    <section className="py-32 px-6 bg-gray-50 border-y border-gray-100">
+      <div className="max-w-7xl mx-auto">
+        <Reveal className="mb-16 max-w-2xl">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-white text-gray-900 font-bold text-xs uppercase tracking-widest mb-4 shadow-sm border border-gray-200">Fonctionnalités</span>
+          <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-[1.1]">Une app pensée<br/>pour vous simplifier la vie.</h2>
+        </Reveal>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
-          {features.map((f) => (
-            <div key={f.title} style={{
-              borderRadius: 20, padding: "32px 28px",
-              border: `2px solid ${f.bg}`,
-              background: "white",
-            }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: 16,
-                background: f.bg, display: "flex",
-                alignItems: "center", justifyContent: "center",
-                fontSize: 28, marginBottom: 20,
-              }}>{f.icon}</div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 16 }}>{f.title}</h3>
-              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
-                {f.items.map((item) => (
-                  <li key={item} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#555" }}>
-                    <span style={{ color: f.color, fontWeight: 700, marginTop: 1, flexShrink: 0 }}>✓</span>
-                    <span>{item}</span>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {features.map((f, i) => (
+            <Reveal key={f.title} delay={i * 100} className={`bg-white rounded-[2rem] p-10 border ${f.border} shadow-lg hover:shadow-2xl transition-all hover:-translate-y-2`}>
+              <div className={`w-20 h-20 rounded-2xl ${f.bg} ${f.color} flex items-center justify-center mb-8`}>
+                {f.icon}
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-6">{f.title}</h3>
+              <ul className="space-y-4">
+                {f.items.map(item => (
+                  <li key={item} className="flex items-start gap-4">
+                    <CheckCircle2 className={`w-6 h-6 shrink-0 ${f.color}`} />
+                    <span className="text-gray-600 font-medium leading-tight">{item}</span>
                   </li>
                 ))}
               </ul>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -419,26 +348,73 @@ function Features() {
 
 function Stats() {
   const items = [
-    { icon: "⏰", label: "Disponible 24h/7" },
-    { icon: "📱", label: "Application Android" },
-    { icon: "🔒", label: "Paiement à la livraison" },
-    { icon: "🏠", label: "Livraison à domicile" },
+    { icon: <Clock size={48} />, label: "Disponible 24h/7" },
+    { icon: <Smartphone size={48} />, label: "Application Android" },
+    { icon: <ShieldCheck size={48} />, label: "Paiement Sécurisé" },
+    { icon: <MapPin size={48} />, label: "Livraison Yaoundé" },
   ];
   return (
-    <section style={{
-      padding: "56px 24px",
-      background: `linear-gradient(135deg, ${GREEN_DARK}, ${GREEN})`,
-    }}>
-      <div style={{
-        maxWidth: 860, margin: "0 auto",
-        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 24,
-      }}>
-        {items.map((s) => (
-          <div key={s.label} style={{ textAlign: "center", color: "white" }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>{s.icon}</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{s.label}</div>
-          </div>
+    <section className="py-20 px-6 bg-primary-dark relative overflow-hidden">
+      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,white_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+      <div className="max-w-7xl mx-auto relative z-10 grid grid-cols-2 md:grid-cols-4 gap-12">
+        {items.map((s, i) => (
+          <Reveal key={s.label} delay={i * 100} className="flex flex-col items-center text-center text-white">
+            <div className="mb-6 opacity-90 p-4 bg-white/10 rounded-full backdrop-blur-sm">{s.icon}</div>
+            <div className="font-bold text-xl tracking-tight">{s.label}</div>
+          </Reveal>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function Testimonials() {
+  const reviews = [
+    {
+      name: "Amina", location: "Yaoundé",
+      text: "Je n'ai plus besoin de passer des heures au marché de Mokolo. Le livreur me ramène tout bien frais !",
+      emoji: "🥬"
+    },
+    {
+      name: "Cédric", location: "Yaoundé",
+      text: "Un service vraiment fiable. Je commande mes légumes depuis le bureau, et quand j'arrive à la maison, tout est là.",
+      emoji: "💼"
+    },
+    {
+      name: "Chantal", location: "Yaoundé",
+      text: "Les prix sont transparents et les livreurs sont toujours souriants. Bravo à l'équipe Makit+ !",
+      emoji: "🌟"
+    }
+  ];
+
+  return (
+    <section className="py-32 px-6 bg-white overflow-hidden">
+      <div className="max-w-7xl mx-auto">
+        <Reveal className="text-center mb-20">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary-dark font-bold text-xs uppercase tracking-widest mb-4">Témoignages</span>
+          <h2 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">Ce qu'ils pensent de nous</h2>
+        </Reveal>
+        
+        <div className="grid md:grid-cols-3 gap-8">
+          {reviews.map((r, i) => (
+            <Reveal key={r.name} delay={i * 150} className="bg-gray-50 border border-gray-100 rounded-[2rem] p-10 relative hover:bg-white hover:shadow-xl transition-all">
+              <Quote className="absolute top-8 right-8 text-primary/10 w-20 h-20" />
+              <div className="text-5xl mb-8 relative z-10">{r.emoji}</div>
+              <p className="text-gray-700 text-lg font-medium leading-relaxed mb-10 relative z-10">
+                "{r.text}"
+              </p>
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white font-black text-xl shadow-md">
+                  {r.name.charAt(0)}
+                </div>
+                <div>
+                  <div className="font-black text-gray-900 text-lg">{r.name}</div>
+                  <div className="text-sm font-bold text-primary">{r.location}</div>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -446,188 +422,29 @@ function Stats() {
 
 function Download() {
   return (
-    <section id="telechargement" style={{ padding: "80px 24px", background: "white" }}>
-      <div style={{
-        maxWidth: 1000, margin: "0 auto",
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48,
-        alignItems: "center",
-      }}>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img
-            src={appShowcase}
-            alt="Application Makit+"
-            style={{ width: "100%", maxWidth: 320, borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
-          />
-        </div>
-
-        <div>
-          <span style={{
-            display: "inline-block", padding: "6px 16px", borderRadius: 20,
-            background: GREEN_LIGHT, color: GREEN_DARK,
-            fontSize: 13, fontWeight: 700, marginBottom: 16, letterSpacing: 1,
-          }}>TÉLÉCHARGEMENT GRATUIT</span>
-
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, color: "#1a1a1a", marginBottom: 16, letterSpacing: -1 }}>
-            Téléchargez<br />Makit+ maintenant
-          </h2>
-          <p style={{ fontSize: 15, color: "#666", marginBottom: 8, lineHeight: 1.7 }}>
-            Application Android — Compatible avec tous les appareils Android 6.0 et plus.
+    <section id="telechargement" className="py-24 px-6 bg-white overflow-hidden">
+      <div className="max-w-6xl mx-auto bg-primary-dark rounded-[3rem] p-10 md:p-20 relative shadow-[0_30px_60px_-15px_rgba(76,175,80,0.5)] flex flex-col md:flex-row items-center gap-16 overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[400px] h-[400px] bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] bg-black/20 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <div className="w-full md:w-1/2 relative z-10 text-white">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-white/20 text-white font-bold text-xs uppercase tracking-widest mb-6 backdrop-blur-md border border-white/10">Téléchargement Gratuit</span>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-[1.05] mb-6 tracking-tight">Emportez votre marché partout.</h2>
+          <p className="text-white/80 text-lg mb-10 font-medium leading-relaxed">
+            Application Android — Compatible avec tous les appareils Android 6.0 et plus. Gratuit, sans publicité, aucun abonnement requis.
           </p>
-          <p style={{ fontSize: 14, color: "#999", marginBottom: 28 }}>
-            Gratuit · Sans publicité · Aucun abonnement requis
-          </p>
-
-          <button onClick={downloadApk} style={{
-            display: "inline-flex", alignItems: "center", gap: 12,
-            padding: "16px 32px", borderRadius: 16,
-            background: GREEN, color: "white",
-            fontWeight: 800, fontSize: 17, border: "none", cursor: "pointer",
-            boxShadow: `0 6px 24px ${GREEN}55`,
-            marginBottom: 16,
-          }}>
-            <span style={{ fontSize: 22 }}>⬇️</span>
-            Télécharger l'APK Android
+          <button onClick={downloadApk} className="flex items-center gap-4 px-8 py-5 bg-white text-primary-dark rounded-full font-black text-lg hover:scale-105 transition-transform shadow-2xl w-full sm:w-auto justify-center">
+            <DownloadIcon size={24} />
+            Télécharger l'APK
           </button>
-
-          <p style={{ fontSize: 12, color: "#aaa", marginBottom: 24 }}>
-            Le téléchargement démarrera automatiquement · Android 6.0+
-          </p>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {["✅ Gratuit et sans frais cachés", "✅ Paiement uniquement à la livraison", "✅ Disponible sur tout Android"].map(tag => (
-              <span key={tag} style={{ fontSize: 14, color: GREEN_DARK, fontWeight: 600 }}>{tag}</span>
-            ))}
+          <div className="mt-8 flex flex-col gap-3 text-white/90 font-bold">
+            <div className="flex items-center gap-3"><CheckCircle2 size={20} className="text-[#A5D6A7]"/> Paiement uniquement à la livraison</div>
+            <div className="flex items-center gap-3"><CheckCircle2 size={20} className="text-[#A5D6A7]"/> Disponible sur tout Android</div>
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function TarifZones() {
-  const distanceRows = [
-    { zone: "Moins de 2 km", frais: "1 000 FCFA" },
-    { zone: "2 – 5 km", frais: "1 500 FCFA" },
-    { zone: "5 – 10 km", frais: "2 000 FCFA" },
-    { zone: "10 – 15 km", frais: "2 500 FCFA" },
-    { zone: "Plus de 15 km", frais: "3 000 FCFA" },
-  ];
-
-  const supplementRows = [
-    { tranche: "Jusqu'à 10 000 FCFA", supplement: "+ 750 FCFA" },
-    { tranche: "10 001 – 20 000 FCFA", supplement: "+ 1 000 FCFA" },
-    { tranche: "20 001 – 30 000 FCFA", supplement: "+ 1 500 FCFA" },
-    { tranche: "30 001 – 50 000 FCFA", supplement: "+ 2 000 FCFA" },
-    { tranche: "Plus de 50 000 FCFA", supplement: "+ 3 000 FCFA" },
-  ];
-
-  const thStyle: React.CSSProperties = {
-    textAlign: "left", padding: "10px 16px", fontSize: 13, fontWeight: 700,
-    color: GREEN_DARK, background: GREEN_LIGHT, borderBottom: `2px solid ${GREEN_MID}`,
-  };
-  const tdStyle: React.CSSProperties = {
-    padding: "10px 16px", fontSize: 14, color: "#333",
-    borderBottom: "1px solid #f0f0f0",
-  };
-  const tdRightStyle: React.CSSProperties = {
-    ...tdStyle, fontWeight: 700, color: GREEN_DARK, textAlign: "right",
-  };
-
-  return (
-    <section id="tarifs" style={{ padding: "80px 24px", background: "white" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <span style={{
-            display: "inline-block", padding: "6px 16px", borderRadius: 20,
-            background: GREEN_LIGHT, color: GREEN_DARK,
-            fontSize: 13, fontWeight: 700, marginBottom: 12, letterSpacing: 1,
-          }}>TARIFS DE LIVRAISON</span>
-          <h2 style={{ fontSize: "clamp(26px, 4vw, 40px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: -1 }}>
-            Frais calculés selon votre position GPS
-          </h2>
-          <p style={{ fontSize: 15, color: "#666", marginTop: 12, maxWidth: 540, margin: "12px auto 0" }}>
-            L'application Makit+ utilise votre position GPS pour calculer les frais de livraison depuis le marché le plus proche. Le tarif final combine la distance et le montant de votre commande.
-          </p>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 32 }}>
-          <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07)", border: "1px solid #f0f0f0" }}>
-            <div style={{ background: GREEN, padding: "16px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 22 }}>📍</span>
-                <div>
-                  <p style={{ fontWeight: 800, fontSize: 16, color: "white", margin: 0 }}>Frais selon la distance</p>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", margin: 0 }}>Depuis le marché le plus proche</p>
-                </div>
-              </div>
-            </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", background: "white" }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Zone</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Frais de base</th>
-                </tr>
-              </thead>
-              <tbody>
-                {distanceRows.map((row) => (
-                  <tr key={row.zone} style={{ transition: "background 0.15s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = GREEN_LIGHT)}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
-                  >
-                    <td style={tdStyle}>{row.zone}</td>
-                    <td style={tdRightStyle}>{row.frais}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07)", border: "1px solid #f0f0f0" }}>
-            <div style={{ background: "#388E3C", padding: "16px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 22 }}>🛒</span>
-                <div>
-                  <p style={{ fontWeight: 800, fontSize: 16, color: "white", margin: 0 }}>Supplément selon le montant</p>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", margin: 0 }}>S'ajoute aux frais de distance</p>
-                </div>
-              </div>
-            </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", background: "white" }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Montant commande</th>
-                  <th style={{ ...thStyle, textAlign: "right" }}>Supplément</th>
-                </tr>
-              </thead>
-              <tbody>
-                {supplementRows.map((row) => (
-                  <tr key={row.tranche} style={{ transition: "background 0.15s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = GREEN_LIGHT)}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
-                  >
-                    <td style={tdStyle}>{row.tranche}</td>
-                    <td style={tdRightStyle}>{row.supplement}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div style={{
-          background: GREEN_LIGHT, borderRadius: 14, padding: "18px 24px",
-          display: "flex", alignItems: "flex-start", gap: 14,
-          border: `1px solid ${GREEN_MID}`,
-        }}>
-          <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>ℹ️</span>
-          <div>
-            <p style={{ fontSize: 14, color: GREEN_DARK, fontWeight: 700, margin: "0 0 4px" }}>
-              Comment sont calculés vos frais ?
-            </p>
-            <p style={{ fontSize: 13, color: "#555", margin: 0, lineHeight: 1.7 }}>
-              L'app détecte votre position GPS et identifie le marché le plus proche parmi les 15 marchés couverts à Yaoundé. Le tarif final est la somme du frais de distance + le supplément selon le montant de vos courses. Si le GPS n'est pas disponible, seul le supplément est appliqué.
-            </p>
-          </div>
+        
+        <div className="w-full md:w-1/2 relative z-10 flex justify-center mt-10 md:mt-0">
+          <img src={appShowcase} alt="Application Makit+" className="w-[280px] md:w-[320px] drop-shadow-[0_30px_60px_rgba(0,0,0,0.6)] hover:-translate-y-4 transition-transform duration-700" />
         </div>
       </div>
     </section>
@@ -636,21 +453,40 @@ function TarifZones() {
 
 function Footer() {
   return (
-    <footer style={{
-      background: "#1a1a1a", color: "rgba(255,255,255,0.6)",
-      padding: "40px 24px", textAlign: "center",
-    }}>
-      <div style={{ maxWidth: 800, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16 }}>
-          <img src={logoImg} alt="Makit+" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: "white" }}>Makit+</span>
+    <footer className="bg-gray-900 pt-24 pb-12 px-6 text-white/70">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
+        <div className="md:col-span-2">
+          <div className="flex items-center gap-4 mb-6">
+            <img src={logoImg} alt="Makit+" className="w-14 h-14 rounded-2xl object-cover" />
+            <span className="text-4xl font-black text-white tracking-tight">Makit+</span>
+          </div>
+          <p className="text-white/60 text-lg max-w-sm mb-8 leading-relaxed font-medium">
+            Le premier service de livraison de courses à domicile qui comprend vos besoins. De la fraîcheur directement chez vous, partout à Yaoundé.
+          </p>
         </div>
-        <p style={{ fontSize: 14, marginBottom: 8 }}>
-          Service de livraison de courses à domicile
-        </p>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
-          © {new Date().getFullYear()} Makit+. Tous droits réservés.
-        </p>
+        
+        <div>
+          <h4 className="text-white font-bold text-xl mb-8 tracking-tight">Liens Rapides</h4>
+          <ul className="space-y-5 font-medium">
+            <li><a href="#fonctionnement" className="hover:text-primary transition-colors flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-primary/50"></div> Comment ça marche</a></li>
+            <li><a href="#" className="hover:text-primary transition-colors flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-primary/50"></div> Politique de confidentialité</a></li>
+            <li><a href="#" className="hover:text-primary transition-colors flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-primary/50"></div> Conditions générales</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h4 className="text-white font-bold text-xl mb-8 tracking-tight">Contact</h4>
+          <ul className="space-y-5 font-medium">
+            <li className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-primary"><Phone size={18}/></div> <span className="text-white/90">+237 6 00 00 00 00</span></li>
+            <li className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-primary"><MessageCircle size={18}/></div> <a href="#" className="hover:text-primary transition-colors text-white/90">WhatsApp</a></li>
+            <li className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-primary"><Mail size={18}/></div> <span className="text-white/90">contact@makitplus.cm</span></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto pt-8 border-t border-white/10 text-center text-sm font-medium flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>© {new Date().getFullYear()} Makit+. Tous droits réservés.</div>
+        <div className="flex items-center gap-2">Fait avec passion à Yaoundé. <span className="text-primary text-lg">🇨🇲</span></div>
       </div>
     </footer>
   );
@@ -658,15 +494,15 @@ function Footer() {
 
 function LandingPage() {
   return (
-    <div>
+    <div className="selection:bg-primary selection:text-white">
       <Navbar />
       <Hero />
       <PromoHero />
       <PhotoGallery />
       <HowItWorks />
       <Features />
-      <TarifZones />
       <Stats />
+      <Testimonials />
       <Download />
       <Footer />
     </div>
