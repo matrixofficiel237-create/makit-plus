@@ -85,27 +85,34 @@ function HeroCarousel({ onOrder }: { onOrder: () => void }) {
   return (
     <Animated.View style={[heroStyles.wrapper, { opacity }]}>
       <ImageBackground source={slide.image} style={heroStyles.bg} resizeMode="cover">
+        {/* Gradient covers only the LEFT half so the photo shows through on the right */}
         <LinearGradient
-          colors={["rgba(0,0,0,0.55)", "rgba(0,80,0,0.72)"]}
+          colors={["rgba(0,50,0,0.88)", "rgba(0,50,0,0.60)", "transparent"]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
           style={heroStyles.gradient}
         >
-          <Text style={heroStyles.title}>{slide.title}</Text>
-          <Text style={heroStyles.accent}>{slide.accent}</Text>
-          <Text style={heroStyles.desc}>{slide.desc}</Text>
-          <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
-            <Feather name="shopping-bag" size={16} color={Colors.primary} />
-            <Text style={heroStyles.btnText}>Commander maintenant</Text>
-          </TouchableOpacity>
-          {/* dots */}
-          <View style={heroStyles.dots}>
-            {HERO_SLIDES.map((_, i) => (
-              <View
-                key={i}
-                style={[heroStyles.dot, i === idx && heroStyles.dotActive]}
-              />
-            ))}
+          {/* Text block on the LEFT */}
+          <View style={heroStyles.textBlock}>
+            <Text style={heroStyles.title}>{slide.title}</Text>
+            <Text style={heroStyles.accent}>{slide.accent}</Text>
+            <Text style={heroStyles.desc}>{slide.desc}</Text>
+            <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
+              <Feather name="shopping-bag" size={16} color={Colors.primary} />
+              <Text style={heroStyles.btnText}>Commander maintenant</Text>
+            </TouchableOpacity>
           </View>
         </LinearGradient>
+
+        {/* Dots at the very bottom center, over the image */}
+        <View style={heroStyles.dots}>
+          {HERO_SLIDES.map((_, i) => (
+            <View
+              key={i}
+              style={[heroStyles.dot, i === idx && heroStyles.dotActive]}
+            />
+          ))}
+        </View>
       </ImageBackground>
     </Animated.View>
   );
@@ -114,7 +121,7 @@ function HeroCarousel({ onOrder }: { onOrder: () => void }) {
 const heroStyles = StyleSheet.create({
   wrapper: {
     width: "100%",
-    height: 280,
+    height: 300,
   },
   bg: {
     flex: 1,
@@ -122,59 +129,68 @@ const heroStyles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
-    paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 18,
-    justifyContent: "flex-end",
+    // gradient goes left → right, covers ~60% width for text readability
+    justifyContent: "center",
+    paddingLeft: 20,
+    paddingRight: "45%", // leave right 45% for the photo to show through
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  textBlock: {
+    gap: 4,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
     color: "#FFFFFF",
     fontFamily: "Inter_700Bold",
-    lineHeight: 34,
-    marginBottom: 4,
+    lineHeight: 30,
+    marginBottom: 2,
   },
   accent: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "700",
     color: "#6EE86E",
     fontFamily: "Inter_700Bold",
     marginBottom: 6,
   },
   desc: {
-    fontSize: 13,
+    fontSize: 12,
     color: "rgba(255,255,255,0.85)",
     fontFamily: "Inter_400Regular",
-    marginBottom: 16,
+    marginBottom: 14,
+    lineHeight: 17,
   },
   btn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 6,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 24,
     alignSelf: "flex-start",
-    marginBottom: 16,
   },
   btnText: {
     color: Colors.primary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
   dots: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     gap: 5,
-    alignSelf: "center",
+    justifyContent: "center",
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.4)",
+    backgroundColor: "rgba(255,255,255,0.45)",
   },
   dotActive: {
     backgroundColor: "#FFFFFF",
