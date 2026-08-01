@@ -57,24 +57,27 @@ const HERO_SLIDES = [
   },
 ];
 
-function HeroCarousel({ onOrder }: { onOrder: () => void }) {
+type HeroProps = {
+  onOrder: () => void;
+  onNotifs: () => void;
+  onCart: () => void;
+  userName: string;
+  cartCount: number;
+  unreadCount: number;
+  topPad: number;
+};
+
+function HeroCarousel({ onOrder, onNotifs, onCart, userName, cartCount, unreadCount, topPad }: HeroProps) {
   const [idx, setIdx] = useState(0);
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const timer = setInterval(() => {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => {
-        setIdx((i) => (i + 1) % HERO_SLIDES.length);
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-      });
+      Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true })
+        .start(() => {
+          setIdx((i) => (i + 1) % HERO_SLIDES.length);
+          Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+        });
     }, 5000);
     return () => clearInterval(timer);
   }, []);
@@ -82,66 +85,148 @@ function HeroCarousel({ onOrder }: { onOrder: () => void }) {
   const slide = HERO_SLIDES[idx];
 
   return (
-    <Animated.View style={[heroStyles.wrapper, { opacity }]}>
-      {/* overflow:hidden clips the image strictly to this block */}
-      <View style={heroStyles.container}>
+    <View style={[heroStyles.wrapper, { overflow: "hidden" }]}>
+      {/* Photo layer — fades in/out */}
+      <Animated.View style={[heroStyles.photoWrap, { opacity }]}>
         <Image source={slide.image} style={heroStyles.photo} resizeMode="cover" />
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.65)"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={heroStyles.overlay}
-        >
-          <View style={heroStyles.textGradient}>
-            <Text style={heroStyles.title}>{slide.title}</Text>
-            <Text style={heroStyles.accent}>{slide.accent}</Text>
-            <Text style={heroStyles.desc}>{slide.desc}</Text>
-            <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
-              <Feather name="shopping-bag" size={16} color="#FFFFFF" />
-              <Text style={heroStyles.btnText}>Commander maintenant</Text>
-            </TouchableOpacity>
+      </Animated.View>
+
+      {/* Top-to-bottom gradient (darkens top for header + bottom for text) */}
+      <LinearGradient
+        colors={["rgba(0,0,0,0.55)", "transparent", "rgba(0,0,0,0.65)"]}
+        locations={[0, 0.4, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Header row — floats at the top of the photo */}
+      <View style={[heroStyles.header, { paddingTop: topPad + 10 }]}>
+        <View style={heroStyles.headerLeft}>
+          <Image source={require("@/assets/images/logo.png")} style={heroStyles.logo} resizeMode="contain" />
+          <View>
+            <Text style={heroStyles.greeting}>Bonjour,</Text>
+            <Text style={heroStyles.userName}>{userName}</Text>
           </View>
-        </LinearGradient>
-        <View style={heroStyles.dots}>
-          {HERO_SLIDES.map((_, i) => (
-            <View key={i} style={[heroStyles.dot, i === idx && heroStyles.dotActive]} />
-          ))}
+        </View>
+        <View style={heroStyles.headerRight}>
+          <TouchableOpacity style={heroStyles.iconBtn} onPress={onNotifs} activeOpacity={0.8}>
+            <Feather name="bell" size={22} color="#FFF" />
+            {unreadCount > 0 && (
+              <View style={heroStyles.badge}>
+                <Text style={heroStyles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={heroStyles.iconBtn} onPress={onCart} activeOpacity={0.8}>
+            <Feather name="shopping-cart" size={22} color="#FFF" />
+            {cartCount > 0 && (
+              <View style={heroStyles.badge}>
+                <Text style={heroStyles.badgeText}>{cartCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
-    </Animated.View>
+
+      {/* Text + CTA — bottom of the photo */}
+      <View style={heroStyles.textBlock}>
+        <Text style={heroStyles.title}>{slide.title}</Text>
+        <Text style={heroStyles.accent}>{slide.accent}</Text>
+        <Text style={heroStyles.desc}>{slide.desc}</Text>
+        <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
+          <Feather name="shopping-bag" size={16} color="#FFF" />
+          <Text style={heroStyles.btnText}>Commander maintenant</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Slide dots */}
+      <View style={heroStyles.dots}>
+        {HERO_SLIDES.map((_, i) => (
+          <View key={i} style={[heroStyles.dot, i === idx && heroStyles.dotActive]} />
+        ))}
+      </View>
+    </View>
   );
 }
 
 const heroStyles = StyleSheet.create({
   wrapper: {
     width: "100%",
-    height: 360,
-    overflow: "hidden", // clips everything strictly to this block
+    height: 420,
   },
-  container: {
-    flex: 1,
-    overflow: "hidden",
+  photoWrap: {
+    ...StyleSheet.absoluteFillObject,
   },
   photo: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
     width: "100%",
     height: "100%",
   },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingBottom: 24,
-  },
-  textGradient: {
-    paddingLeft: 20,
-    paddingRight: "46%",
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
     paddingBottom: 10,
   },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  logo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  greeting: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.85)",
+    fontFamily: "Inter_400Regular",
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    fontFamily: "Inter_700Bold",
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#E53935",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
   textBlock: {
+    position: "absolute",
+    bottom: 40,
+    left: 20,
+    right: "44%",
     gap: 2,
   },
   title: {
@@ -216,77 +301,6 @@ const heroStyles = StyleSheet.create({
   },
 });
 
-const PROMO_MESSAGES = [
-  { emoji: "🎁", text: "Parrainez vos amis et gagnez des points !", sub: "10 points = livraison gratuite" },
-  { emoji: "🚀", text: "Livraison rapide à domicile", sub: "Frais de livraison à partir de 750 FCFA" },
-  { emoji: "🥬", text: "Produits frais du marché", sub: "Légumes, viandes, poissons et plus" },
-  { emoji: "📱", text: "Payez facilement par mobile money", sub: "Orange Money & MTN MoMo acceptés" },
-  { emoji: "🏆", text: "Cumulez des récompenses !", sub: "Partagez votre code dans Mon profil" },
-];
-
-function PromoBanner() {
-  const [idx, setIdx] = useState(0);
-  const opacity = useRef(new Animated.Value(1)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const cycle = setInterval(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 0, duration: 350, useNativeDriver: false }),
-        Animated.timing(translateY, { toValue: -8, duration: 350, useNativeDriver: false }),
-      ]).start(() => {
-        setIdx(i => (i + 1) % PROMO_MESSAGES.length);
-        translateY.setValue(8);
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: false }),
-          Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: false }),
-        ]).start();
-      });
-    }, 3500);
-    return () => clearInterval(cycle);
-  }, []);
-
-  const msg = PROMO_MESSAGES[idx];
-  return (
-    <View style={promoBannerStyles.container}>
-      <Animated.View style={[promoBannerStyles.inner, { opacity, transform: [{ translateY }] }]}>
-        <Text style={promoBannerStyles.emoji}>{msg.emoji}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={promoBannerStyles.text}>{msg.text}</Text>
-          <Text style={promoBannerStyles.sub}>{msg.sub}</Text>
-        </View>
-      </Animated.View>
-      {/* dots */}
-      <View style={promoBannerStyles.dots}>
-        {PROMO_MESSAGES.map((_, i) => (
-          <View key={i} style={[promoBannerStyles.dot, i === idx && promoBannerStyles.dotActive]} />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-const promoBannerStyles = StyleSheet.create({
-  container: {
-    backgroundColor: "#E8F5E9",
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    gap: 10,
-    overflow: "hidden",
-  },
-  inner: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 38 },
-  emoji: { fontSize: 26 },
-  text: { fontSize: 13, fontWeight: "700", color: Colors.primaryDark, fontFamily: "Inter_700Bold" },
-  sub: { fontSize: 11, color: Colors.textLight, fontFamily: "Inter_400Regular", marginTop: 1 },
-  dots: { flexDirection: "row", gap: 5, justifyContent: "center" },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.border },
-  dotActive: { backgroundColor: Colors.primary, width: 14 },
-});
 
 const QUICK_CATEGORIES = [
   { id: "legumes", nom: "Légumes", emoji: "🥬" },
@@ -311,63 +325,22 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { paddingTop: topPad }]}
+      style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={require("@/assets/images/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <View>
-            <Text style={styles.greeting}>Bonjour,</Text>
-            <Text style={styles.userName}>{user?.prenom} {user?.nom}</Text>
-          </View>
-        </View>
-        <View style={styles.headerRight}>
-          {/* Cloche notifications */}
-          <TouchableOpacity
-            style={styles.cartBtn}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowNotifs(true); }}
-          >
-            <Feather name="bell" size={22} color={Colors.white} />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          {/* Panier */}
-          <TouchableOpacity
-            style={styles.cartBtn}
-            onPress={() => router.push("/(tabs)/cart")}
-          >
-            <Feather name="shopping-cart" size={22} color={Colors.white} />
-            {count > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{count}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <NotificationsModal visible={showNotifs} onClose={() => setShowNotifs(false)} />
 
-      {/* Hero Carousel */}
+      {/* Hero — contient le header + la photo + le texte */}
       <HeroCarousel
-        onOrder={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          router.push("/(tabs)/order");
-        }}
+        topPad={topPad}
+        userName={`${user?.prenom ?? ""} ${user?.nom ?? ""}`}
+        cartCount={count}
+        unreadCount={unreadCount}
+        onNotifs={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowNotifs(true); }}
+        onCart={() => router.push("/(tabs)/cart")}
+        onOrder={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/(tabs)/order"); }}
       />
-
-      {/* Animated promo banner */}
-      <PromoBanner />
 
       {/* Quick Actions */}
       <Text style={styles.sectionTitle}>Que souhaitez-vous faire ?</Text>
