@@ -86,21 +86,31 @@ function HeroCarousel({ onOrder, onNotifs, onCart, userName, cartCount, unreadCo
 
   return (
     <View style={[heroStyles.wrapper, { overflow: "hidden" }]}>
-      {/* Photo layer — fades in/out */}
+
+      {/* Photo + texte : les deux fadent ensemble */}
       <Animated.View style={[heroStyles.photoWrap, { opacity }]}>
         <Image source={slide.image} style={heroStyles.photo} resizeMode="cover" />
+        {/* Gradient par-dessus la photo */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.50)", "transparent", "rgba(0,0,0,0.68)"]}
+          locations={[0, 0.38, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Texte ancré en bas à gauche — bouge avec la photo */}
+        <View style={heroStyles.textBlock}>
+          <Text style={heroStyles.title}>{slide.title}</Text>
+          <Text style={heroStyles.accent}>{slide.accent}</Text>
+          <Text style={heroStyles.desc}>{slide.desc}</Text>
+          <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
+            <Feather name="shopping-bag" size={16} color="#FFF" />
+            <Text style={heroStyles.btnText}>Commander maintenant</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
-      {/* Top-to-bottom gradient (darkens top for header + bottom for text) */}
-      <LinearGradient
-        colors={["rgba(0,0,0,0.55)", "transparent", "rgba(0,0,0,0.65)"]}
-        locations={[0, 0.4, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Header row — floats at the top of the photo */}
+      {/* Header — toujours visible, ne fade pas */}
       <View style={[heroStyles.header, { paddingTop: topPad + 10 }]}>
         <View style={heroStyles.headerLeft}>
           <Image source={require("@/assets/images/logo.png")} style={heroStyles.logo} resizeMode="contain" />
@@ -129,18 +139,7 @@ function HeroCarousel({ onOrder, onNotifs, onCart, userName, cartCount, unreadCo
         </View>
       </View>
 
-      {/* Text + CTA — bottom of the photo */}
-      <View style={heroStyles.textBlock}>
-        <Text style={heroStyles.title}>{slide.title}</Text>
-        <Text style={heroStyles.accent}>{slide.accent}</Text>
-        <Text style={heroStyles.desc}>{slide.desc}</Text>
-        <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
-          <Feather name="shopping-bag" size={16} color="#FFF" />
-          <Text style={heroStyles.btnText}>Commander maintenant</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Slide dots */}
+      {/* Dots — toujours visibles */}
       <View style={heroStyles.dots}>
         {HERO_SLIDES.map((_, i) => (
           <View key={i} style={[heroStyles.dot, i === idx && heroStyles.dotActive]} />
