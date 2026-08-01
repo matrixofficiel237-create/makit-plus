@@ -85,32 +85,31 @@ function HeroCarousel({ onOrder }: { onOrder: () => void }) {
   return (
     <Animated.View style={[heroStyles.wrapper, { opacity }]}>
       <ImageBackground source={slide.image} style={heroStyles.bg} resizeMode="cover">
-        {/* Gradient covers only the LEFT half so the photo shows through on the right */}
+        {/* Bottom-to-top dark overlay so text at bottom is readable, photo visible at top */}
         <LinearGradient
-          colors={["rgba(0,50,0,0.88)", "rgba(0,50,0,0.60)", "transparent"]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={heroStyles.gradient}
+          colors={["transparent", "rgba(0,0,0,0.15)", "rgba(0,0,0,0.62)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={heroStyles.overlay}
         >
-          {/* Text block on the LEFT */}
-          <View style={heroStyles.textBlock}>
-            <Text style={heroStyles.title}>{slide.title}</Text>
-            <Text style={heroStyles.accent}>{slide.accent}</Text>
-            <Text style={heroStyles.desc}>{slide.desc}</Text>
-            <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
-              <Feather name="shopping-bag" size={16} color={Colors.primary} />
-              <Text style={heroStyles.btnText}>Commander maintenant</Text>
-            </TouchableOpacity>
+          {/* Left-side text band — right side stays open showing the photo subject */}
+          <View style={heroStyles.textGradient}>
+            <View style={heroStyles.textBlock}>
+              <Text style={heroStyles.title}>{slide.title}</Text>
+              <Text style={heroStyles.accent}>{slide.accent}</Text>
+              <Text style={heroStyles.desc}>{slide.desc}</Text>
+              <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
+                <Feather name="shopping-bag" size={16} color="#FFFFFF" />
+                <Text style={heroStyles.btnText}>Commander maintenant</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </LinearGradient>
 
-        {/* Dots at the very bottom center, over the image */}
+        {/* Dots at the very bottom center */}
         <View style={heroStyles.dots}>
           {HERO_SLIDES.map((_, i) => (
-            <View
-              key={i}
-              style={[heroStyles.dot, i === idx && heroStyles.dotActive]}
-            />
+            <View key={i} style={[heroStyles.dot, i === idx && heroStyles.dotActive]} />
           ))}
         </View>
       </ImageBackground>
@@ -121,59 +120,76 @@ function HeroCarousel({ onOrder }: { onOrder: () => void }) {
 const heroStyles = StyleSheet.create({
   wrapper: {
     width: "100%",
-    height: 300,
+    height: 360,
   },
   bg: {
     flex: 1,
     width: "100%",
   },
-  gradient: {
+  // Dark overlay bottom → top so text at bottom is readable, photo visible at top
+  overlay: {
     flex: 1,
-    // gradient goes left → right, covers ~60% width for text readability
-    justifyContent: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 24,
+  },
+  // Left-side dark band only behind the text (not full width)
+  textGradient: {
     paddingLeft: 20,
-    paddingRight: "45%", // leave right 45% for the photo to show through
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingRight: "46%",
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   textBlock: {
-    gap: 4,
+    gap: 2,
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: "800",
     color: "#FFFFFF",
     fontFamily: "Inter_700Bold",
-    lineHeight: 30,
-    marginBottom: 2,
+    lineHeight: 36,
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
   },
   accent: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#6EE86E",
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#5EE85E",
     fontFamily: "Inter_700Bold",
     marginBottom: 6,
+    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   desc: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.85)",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.92)",
     fontFamily: "Inter_400Regular",
-    marginBottom: 14,
-    lineHeight: 17,
+    marginBottom: 16,
+    lineHeight: 18,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   btn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 24,
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 28,
     alignSelf: "flex-start",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
   btnText: {
-    color: Colors.primary,
-    fontSize: 13,
+    color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "700",
     fontFamily: "Inter_700Bold",
   },
