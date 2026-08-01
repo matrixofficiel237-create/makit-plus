@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  ImageBackground,
   Platform,
   Animated,
   Dimensions,
@@ -84,35 +83,31 @@ function HeroCarousel({ onOrder }: { onOrder: () => void }) {
 
   return (
     <Animated.View style={[heroStyles.wrapper, { opacity }]}>
-      <ImageBackground source={slide.image} style={heroStyles.bg} resizeMode="cover">
-        {/* Bottom-to-top dark overlay so text at bottom is readable, photo visible at top */}
+      {/* overflow:hidden clips the image strictly to this block */}
+      <View style={heroStyles.container}>
+        <Image source={slide.image} style={heroStyles.photo} resizeMode="cover" />
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.15)", "rgba(0,0,0,0.62)"]}
+          colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.65)"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={heroStyles.overlay}
         >
-          {/* Left-side text band — right side stays open showing the photo subject */}
           <View style={heroStyles.textGradient}>
-            <View style={heroStyles.textBlock}>
-              <Text style={heroStyles.title}>{slide.title}</Text>
-              <Text style={heroStyles.accent}>{slide.accent}</Text>
-              <Text style={heroStyles.desc}>{slide.desc}</Text>
-              <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
-                <Feather name="shopping-bag" size={16} color="#FFFFFF" />
-                <Text style={heroStyles.btnText}>Commander maintenant</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={heroStyles.title}>{slide.title}</Text>
+            <Text style={heroStyles.accent}>{slide.accent}</Text>
+            <Text style={heroStyles.desc}>{slide.desc}</Text>
+            <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
+              <Feather name="shopping-bag" size={16} color="#FFFFFF" />
+              <Text style={heroStyles.btnText}>Commander maintenant</Text>
+            </TouchableOpacity>
           </View>
         </LinearGradient>
-
-        {/* Dots at the very bottom center */}
         <View style={heroStyles.dots}>
           {HERO_SLIDES.map((_, i) => (
             <View key={i} style={[heroStyles.dot, i === idx && heroStyles.dotActive]} />
           ))}
         </View>
-      </ImageBackground>
+      </View>
     </Animated.View>
   );
 }
@@ -121,22 +116,29 @@ const heroStyles = StyleSheet.create({
   wrapper: {
     width: "100%",
     height: 360,
+    overflow: "hidden", // clips everything strictly to this block
   },
-  bg: {
+  container: {
     flex: 1,
-    width: "100%",
+    overflow: "hidden",
   },
-  // Dark overlay bottom → top so text at bottom is readable, photo visible at top
+  photo: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+  },
   overlay: {
     flex: 1,
     justifyContent: "flex-end",
     paddingBottom: 24,
   },
-  // Left-side dark band only behind the text (not full width)
   textGradient: {
     paddingLeft: 20,
     paddingRight: "46%",
-    paddingTop: 10,
     paddingBottom: 10,
   },
   textBlock: {
