@@ -224,9 +224,10 @@ const heroStyles = StyleSheet.create({
   },
   textBlock: {
     position: "absolute",
-    bottom: 40,
+    bottom: 36,
     left: 20,
-    right: "44%",
+    right: "42%",
+    maxHeight: 220,
     gap: 2,
   },
   title: {
