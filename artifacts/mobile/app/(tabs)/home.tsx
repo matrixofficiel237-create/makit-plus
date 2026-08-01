@@ -6,9 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ImageBackground,
   Platform,
   Animated,
+  Dimensions,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -19,6 +22,165 @@ import { useCart } from "@/context/CartContext";
 import { useNotifications } from "@/context/NotificationsContext";
 import NotificationsModal from "@/components/NotificationsModal";
 import * as Haptics from "expo-haptics";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const HERO_SLIDES = [
+  {
+    image: require("@/assets/images/hero1.jpg"),
+    title: "Le marché vient\nà vous",
+    accent: "avec Makit+",
+    desc: "Produits frais du marché livrés rapidement à domicile",
+  },
+  {
+    image: require("@/assets/images/hero2.jpg"),
+    title: "Livraison rapide\nà domicile",
+    accent: "En moins d'une heure",
+    desc: "Nos livreurs sillonnent la ville pour vous servir vite",
+  },
+  {
+    image: require("@/assets/images/hero3.jpg"),
+    title: "Poissons & viandes\nultra-frais",
+    accent: "Du marché à votre table",
+    desc: "Sélectionnés chaque matin directement au marché local",
+  },
+  {
+    image: require("@/assets/images/hero4.jpg"),
+    title: "Sans boue,\nsans foule",
+    accent: "Restez chez vous",
+    desc: "On s'occupe des courses, vous profitez de votre famille",
+  },
+  {
+    image: require("@/assets/images/hero5.jpg"),
+    title: "Commandez\nen 3 clics",
+    accent: "Simple & rapide",
+    desc: "Parcourez les produits et payez par mobile money",
+  },
+];
+
+function HeroCarousel({ onOrder }: { onOrder: () => void }) {
+  const [idx, setIdx] = useState(0);
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        setIdx((i) => (i + 1) % HERO_SLIDES.length);
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const slide = HERO_SLIDES[idx];
+
+  return (
+    <Animated.View style={[heroStyles.wrapper, { opacity }]}>
+      <ImageBackground source={slide.image} style={heroStyles.bg} resizeMode="cover">
+        <LinearGradient
+          colors={["rgba(0,0,0,0.55)", "rgba(0,80,0,0.72)"]}
+          style={heroStyles.gradient}
+        >
+          <Text style={heroStyles.title}>{slide.title}</Text>
+          <Text style={heroStyles.accent}>{slide.accent}</Text>
+          <Text style={heroStyles.desc}>{slide.desc}</Text>
+          <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
+            <Feather name="shopping-bag" size={16} color={Colors.primary} />
+            <Text style={heroStyles.btnText}>Commander maintenant</Text>
+          </TouchableOpacity>
+          {/* dots */}
+          <View style={heroStyles.dots}>
+            {HERO_SLIDES.map((_, i) => (
+              <View
+                key={i}
+                style={[heroStyles.dot, i === idx && heroStyles.dotActive]}
+              />
+            ))}
+          </View>
+        </LinearGradient>
+      </ImageBackground>
+    </Animated.View>
+  );
+}
+
+const heroStyles = StyleSheet.create({
+  wrapper: {
+    width: "100%",
+    height: 280,
+  },
+  bg: {
+    flex: 1,
+    width: "100%",
+  },
+  gradient: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 18,
+    justifyContent: "flex-end",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    fontFamily: "Inter_700Bold",
+    lineHeight: 34,
+    marginBottom: 4,
+  },
+  accent: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#6EE86E",
+    fontFamily: "Inter_700Bold",
+    marginBottom: 6,
+  },
+  desc: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
+    fontFamily: "Inter_400Regular",
+    marginBottom: 16,
+  },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
+    alignSelf: "flex-start",
+    marginBottom: 16,
+  },
+  btnText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+  },
+  dots: {
+    flexDirection: "row",
+    gap: 5,
+    alignSelf: "center",
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.4)",
+  },
+  dotActive: {
+    backgroundColor: "#FFFFFF",
+    width: 18,
+  },
+});
 
 const PROMO_MESSAGES = [
   { emoji: "🎁", text: "Parrainez vos amis et gagnez des points !", sub: "10 points = livraison gratuite" },
@@ -162,27 +324,13 @@ export default function HomeScreen() {
 
       <NotificationsModal visible={showNotifs} onClose={() => setShowNotifs(false)} />
 
-      {/* Hero Banner */}
-      <View style={styles.heroBanner}>
-        <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>Le marché vient à vous</Text>
-          <Text style={styles.heroSubtitle}>avec Makit+</Text>
-          <Text style={styles.heroDesc}>
-            Produits frais du marché livrés rapidement à domicile
-          </Text>
-          <TouchableOpacity
-            style={styles.heroBtn}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/(tabs)/order");
-            }}
-          >
-            <Feather name="shopping-bag" size={16} color={Colors.primary} />
-            <Text style={styles.heroBtnText}>Commander maintenant</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.heroEmoji}>🛒</Text>
-      </View>
+      {/* Hero Carousel */}
+      <HeroCarousel
+        onOrder={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push("/(tabs)/order");
+        }}
+      />
 
       {/* Animated promo banner */}
       <PromoBanner />
@@ -381,58 +529,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 10,
     fontWeight: "700",
-  },
-  heroBanner: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-    paddingTop: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  heroContent: {
-    flex: 1,
-    gap: 4,
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: Colors.white,
-    fontFamily: "Inter_700Bold",
-  },
-  heroSubtitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.9)",
-    fontFamily: "Inter_600SemiBold",
-  },
-  heroDesc: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
-    fontFamily: "Inter_400Regular",
-    marginTop: 4,
-  },
-  heroBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.white,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignSelf: "flex-start",
-    marginTop: 12,
-  },
-  heroBtnText: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: "700",
-    fontFamily: "Inter_700Bold",
-  },
-  heroEmoji: {
-    fontSize: 56,
-    marginLeft: 12,
   },
   sectionTitle: {
     fontSize: 17,
