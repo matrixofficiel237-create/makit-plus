@@ -1,7 +1,11 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import fs from "fs";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { openai } from "@workspace/integrations-openai-ai-server";
+
+const execFileAsync = promisify(execFile);
 import { verifyAiToken } from "../lib/aiToken";
 import { findUserById } from "../store";
 import { getRecentOrdersByUser } from "../store";
@@ -228,11 +232,21 @@ router.post(
     }
 
     const filePath = req.file.path;
+    const wavPath  = filePath + ".wav";
 
     try {
+      // Convert whatever format React Native sends (m4a/aac) → WAV PCM 16-bit
+      await execFileAsync("ffmpeg", [
+        "-y", "-i", filePath,
+        "-ar", "16000",   // 16 kHz — optimal for speech recognition
+        "-ac", "1",       // mono
+        "-c:a", "pcm_s16le",
+        wavPath,
+      ]);
+
       const transcription = await openai.audio.transcriptions.create({
         model: "gpt-4o-mini-transcribe",
-        file: fs.createReadStream(filePath) as unknown as File,
+        file: fs.createReadStream(wavPath) as unknown as File,
         language: "fr",
         response_format: "json",
       });
@@ -243,6 +257,7 @@ router.post(
       res.status(500).json({ error: "La transcription a échoué. Réessaie." });
     } finally {
       fs.unlink(filePath, () => {});
+      fs.unlink(wavPath,  () => {});
     }
   }
 );
