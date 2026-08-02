@@ -286,14 +286,17 @@ export default function AIAssistant() {
           if (res.status === 401) {
             throw new Error("Session expirée. Reconnecte-toi pour utiliser la commande vocale.");
           }
-          throw new Error("Transcription échouée");
+          let serverMsg = "";
+          try { serverMsg = (await res.json()).error ?? ""; } catch {}
+          throw new Error(serverMsg || `Erreur serveur (${res.status}).`);
         }
         const { text } = await res.json();
         if (text?.trim()) {
           setInput(text.trim());
         }
-      } catch {
-        setError("La transcription a échoué. Réessaie.");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "La transcription a échoué. Réessaie.";
+        setError(msg);
       } finally {
         setTranscribing(false);
       }
