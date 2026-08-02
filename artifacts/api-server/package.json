@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@types/multer": "^2.2.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/integrations-openai-ai-server": "workspace:*",
@@ -19,6 +20,7 @@
     "expo-server-sdk": "^6.1.0",
     "express": "^5",
     "firebase-admin": "^13.10.0",
+    "multer": "^2.2.0",
     "pg": "^8.20.0",
     "pino": "^9",
     "pino-http": "^10"

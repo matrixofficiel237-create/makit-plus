@@ -14,7 +14,10 @@
       "backgroundColor": "#4CAF50"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Makit+ utilise le micro pour transcrire vos commandes vocales et remplir votre liste de courses automatiquement."
+      }
     },
     "android": {
       "package": "com.makit.app",
@@ -27,7 +30,8 @@
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "notification": {
@@ -48,6 +52,12 @@
       ],
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Makit+ utilise le micro pour transcrire vos commandes vocales et remplir votre liste de courses automatiquement."
+        }
+      ],
       [
         "expo-notifications",
         {

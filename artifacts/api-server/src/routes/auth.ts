@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { findUserByPhone, findUserById, createUser, updateUser, generatePromoCode, findUserByPromoCode, setPromoCode, addPointsToUser, createReferralEvent, hasPrixSpecial } from "../store";
+import { signAiToken } from "../lib/aiToken";
 
 const router = Router();
 
@@ -16,7 +17,7 @@ router.post("/login", async (req, res) => {
   }
   const { motDePasse: _, ...safe } = user;
   const prixSpecial = await hasPrixSpecial(user);
-  res.json({ user: { ...safe, prixSpecial } });
+  res.json({ user: { ...safe, prixSpecial }, aiToken: signAiToken(user.id) });
 });
 
 router.post("/register", async (req, res) => {
@@ -72,7 +73,7 @@ router.post("/register", async (req, res) => {
 
   const { motDePasse: _, ...safe } = newUser;
   const prixSpecial = await hasPrixSpecial(newUser);
-  res.status(201).json({ user: { ...safe, prixSpecial }, referrerFound: !!referrer });
+  res.status(201).json({ user: { ...safe, prixSpecial }, aiToken: signAiToken(newUser.id), referrerFound: !!referrer });
 });
 
 router.get("/me/:id", async (req, res) => {
@@ -81,6 +82,43 @@ router.get("/me/:id", async (req, res) => {
   const { motDePasse: _, ...safe } = user;
   const prixSpecial = await hasPrixSpecial(user);
   res.json({ user: { ...safe, prixSpecial } });
+});
+
+/**
+ * POST /auth/ai-token/refresh
+ *
+ * Requires a currently-valid AI bearer token to mint a fresh one.
+ * Only someone who already holds a valid credential can extend it,
+ * so this route does not widen the attack surface beyond the existing
+ * token bearer.
+ *
+ * Body: { userId: string }
+ * Header: Authorization: Bearer <current-valid-token>
+ */
+router.post("/ai-token/refresh", async (req, res) => {
+  const auth = req.headers["authorization"];
+  const currentToken = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  const { userId } = req.body as { userId?: string };
+
+  if (!currentToken || !userId) {
+    res.status(401).json({ error: "Authentification requise." });
+    return;
+  }
+
+  // Verify the caller holds a currently valid token for this userId
+  const { verifyAiToken } = await import("../lib/aiToken");
+  if (!verifyAiToken(userId, currentToken)) {
+    res.status(401).json({ error: "Token invalide ou expiré." });
+    return;
+  }
+
+  const user = await findUserById(userId);
+  if (!user) {
+    res.status(404).json({ error: "Utilisateur introuvable." });
+    return;
+  }
+
+  res.json({ aiToken: signAiToken(user.id) });
 });
 
 router.post("/reset-password", async (req, res) => {

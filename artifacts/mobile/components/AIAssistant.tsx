@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,10 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/utils/api";
 import Colors from "@/constants/colors";
 
@@ -45,7 +47,7 @@ const EMOJI_MAP: Record<string, string> = {
   sel: "🧂", sucre: "🍬", farine: "🌾", pain: "🍞",
   ndolè: "🌿", ndole: "🌿", eru: "🥬", okok: "🌿", kwem: "🌿",
   arachide: "🥜", palmier: "🌴", kanda: "🥩", ekwang: "🥬",
-  plantain: "🍌", macabo: "🥔", taro: "🥔", mbongo: "🫙",
+  macabo: "🥔", taro: "🥔", mbongo: "🫙",
   djansan: "🌿", pistache: "🌰", soya: "🍢",
 };
 
@@ -67,18 +69,35 @@ const SUGGESTIONS = [
 
 export default function AIAssistant() {
   const { addItem } = useCart();
+  const { user, aiToken, refreshAiToken } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [open, setOpen]               = useState(false);
-  const [input, setInput]             = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [aiResponse, setAiResponse]   = useState("");
+  const [open, setOpen]                   = useState(false);
+  const [input, setInput]                 = useState("");
+  const [loading, setLoading]             = useState(false);
+  const [aiResponse, setAiResponse]       = useState("");
   const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
-  const [added, setAdded]             = useState<Set<number>>(new Set());
-  const [error, setError]             = useState("");
-  const pulseAnim                     = useRef(new Animated.Value(1)).current;
+  const [added, setAdded]                 = useState<Set<number>>(new Set());
+  const [error, setError]                 = useState("");
+
+  // Voice recording state
+  const [isRecording, setIsRecording]   = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  // Ref holds the live Recording instance — never stale in callbacks
+  const recordingRef  = useRef<Audio.Recording | null>(null);
+  // Lock: set synchronously before async start to prevent concurrent presses
+  const startingRef   = useRef(false);
+  // Generation counter: incremented on close/unmount to cancel in-flight starts
+  const generationRef = useRef(0);
 
   const hasResult = aiResponse !== "" || editableItems.length > 0;
+  const micBusy   = isRecording || transcribing;
+
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const wave1     = useRef(new Animated.Value(0.3)).current;
+  const wave2     = useRef(new Animated.Value(0.5)).current;
+  const wave3     = useRef(new Animated.Value(0.4)).current;
+  const waveLoop  = useRef<Animated.CompositeAnimation | null>(null);
 
   React.useEffect(() => {
     const loop = Animated.loop(
@@ -90,6 +109,180 @@ export default function AIAssistant() {
     loop.start();
     return () => loop.stop();
   }, []);
+
+  // Clean up any active recording when the component unmounts
+  React.useEffect(() => {
+    return () => {
+      // Increment generation so any in-flight start aborts after its next await
+      generationRef.current += 1;
+      recordingRef.current?.stopAndUnloadAsync().catch(() => {});
+      recordingRef.current = null;
+    };
+  }, []);
+
+  /** Stops any active recording, cancels any in-flight start, then closes the sheet. */
+  function closeSheet() {
+    // Invalidate any in-flight start by advancing the generation
+    generationRef.current += 1;
+    if (recordingRef.current) {
+      const rec = recordingRef.current;
+      recordingRef.current = null;
+      setIsRecording(false);
+      stopWaveAnimation();
+      rec.stopAndUnloadAsync().catch(() => {});
+    }
+    setOpen(false);
+  }
+
+  function startWaveAnimation() {
+    const makeWave = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: 1,   duration: 300, useNativeDriver: false }),
+          Animated.timing(anim, { toValue: 0.3, duration: 300, useNativeDriver: false }),
+        ])
+      );
+    waveLoop.current = Animated.parallel([
+      makeWave(wave1, 0),
+      makeWave(wave2, 150),
+      makeWave(wave3, 300),
+    ]);
+    waveLoop.current.start();
+  }
+
+  function stopWaveAnimation() {
+    waveLoop.current?.stop();
+    wave1.setValue(0.3);
+    wave2.setValue(0.5);
+    wave3.setValue(0.4);
+  }
+
+  /** Stops any active recording, resets mic state, then closes the sheet. */
+  function closeSheet() {
+    if (recordingRef.current) {
+      const rec = recordingRef.current;
+      recordingRef.current = null;
+      setIsRecording(false);
+      stopWaveAnimation();
+      rec.stopAndUnloadAsync().catch(() => {});
+    }
+    setOpen(false);
+  }
+
+  // Toggle mic: first press starts recording, second press stops + transcribes
+  const handleMicPress = useCallback(async () => {
+    if (recordingRef.current) {
+      // --- STOP ---
+      const rec = recordingRef.current;
+      recordingRef.current = null;
+      setIsRecording(false);
+      stopWaveAnimation();
+
+      try {
+        await rec.stopAndUnloadAsync();
+        const uri = rec.getURI();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        if (!uri) return;
+
+        setTranscribing(true);
+        setError("");
+
+        const formData = new FormData();
+        formData.append("audio", {
+          uri,
+          name: "recording.m4a",
+          type: "audio/m4a",
+        } as unknown as Blob);
+
+        const buildHeaders = (token: string | null): Record<string, string> => {
+          const h: Record<string, string> = {};
+          if (user?.id) h["X-User-Id"] = user.id;
+          if (token)    h["Authorization"] = `Bearer ${token}`;
+          return h;
+        };
+
+        let res = await fetch(`${API_BASE}/ai/transcribe`, {
+          method: "POST",
+          headers: buildHeaders(aiToken),
+          body: formData,
+        });
+
+        // If token expired, attempt a secure refresh and retry once
+        if (res.status === 401) {
+          const newToken = await refreshAiToken();
+          if (newToken) {
+            res = await fetch(`${API_BASE}/ai/transcribe`, {
+              method: "POST",
+              headers: buildHeaders(newToken),
+              body: formData,
+            });
+          }
+        }
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("Session expirée. Reconnecte-toi pour utiliser la commande vocale.");
+          }
+          throw new Error("Transcription échouée");
+        }
+        const { text } = await res.json();
+        if (text?.trim()) {
+          setInput(text.trim());
+        }
+      } catch {
+        setError("La transcription a échoué. Réessaie.");
+      } finally {
+        setTranscribing(false);
+      }
+    } else {
+      // --- START (with concurrent-press guard + cancellation by generation) ---
+      if (startingRef.current) return; // already starting, ignore
+      startingRef.current = true;
+      const myGen = generationRef.current; // snapshot generation at start
+
+      try {
+        const { granted } = await Audio.requestPermissionsAsync();
+        if (generationRef.current !== myGen) return; // sheet closed during permission
+        if (!granted) {
+          setError("Permission micro refusée. Active-la dans les paramètres.");
+          return;
+        }
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+        if (generationRef.current !== myGen) return; // sheet closed during audio mode setup
+
+        const rec = new Audio.Recording();
+        await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        if (generationRef.current !== myGen) {
+          // Sheet closed during prepare — unload the new recording immediately
+          rec.stopAndUnloadAsync().catch(() => {});
+          return;
+        }
+        await rec.startAsync();
+        if (generationRef.current !== myGen) {
+          // Sheet closed during start — stop and discard
+          rec.stopAndUnloadAsync().catch(() => {});
+          return;
+        }
+
+        recordingRef.current = rec;
+        setIsRecording(true);
+        startWaveAnimation();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch {
+        if (generationRef.current === myGen) {
+          setError("Impossible de démarrer l'enregistrement.");
+        }
+      } finally {
+        startingRef.current = false;
+      }
+    }
+  }, [user, aiToken]);
 
   // Update a single field of one item
   function updateItem(index: number, field: "editedNom" | "editedPrix", value: string) {
@@ -110,7 +303,7 @@ export default function AIAssistant() {
       const res = await fetch(`${API_BASE}/ai/assistant`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input.trim() }),
+        body: JSON.stringify({ message: input.trim(), userId: user?.id }),
       });
       if (!res.ok) throw new Error("Erreur serveur");
       const data: { response?: string; items?: AIItem[] } = await res.json();
@@ -197,9 +390,9 @@ export default function AIAssistant() {
       </Animated.View>
 
       {/* Modal */}
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={closeSheet}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setOpen(false)} />
+          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeSheet} />
 
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={styles.handle} />
@@ -210,7 +403,7 @@ export default function AIAssistant() {
                 <Text style={styles.sheetTitle}>✨ Assistant Makit+</Text>
                 <Text style={styles.sheetSub}>Dis-moi ce que tu veux cuisiner ou acheter</Text>
               </View>
-              <TouchableOpacity onPress={() => setOpen(false)} style={styles.closeBtn}>
+              <TouchableOpacity onPress={closeSheet} style={styles.closeBtn}>
                 <Feather name="x" size={20} color="#666" />
               </TouchableOpacity>
             </View>
@@ -245,6 +438,14 @@ export default function AIAssistant() {
                 <View style={styles.loadingWrap}>
                   <ActivityIndicator size="small" color={Colors.primary} />
                   <Text style={styles.loadingText}>Je prépare ta liste…</Text>
+                </View>
+              )}
+
+              {/* Transcribing */}
+              {transcribing && (
+                <View style={styles.loadingWrap}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                  <Text style={styles.loadingText}>Transcription en cours…</Text>
                 </View>
               )}
 
@@ -340,29 +541,59 @@ export default function AIAssistant() {
 
             {/* Barre de saisie */}
             <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={input}
-                onChangeText={setInput}
-                placeholder="Ex : Je veux faire du ndolé…"
-                placeholderTextColor="#aaa"
-                multiline
-                maxLength={200}
-                returnKeyType="send"
-                onSubmitEditing={askAI}
-                editable={!loading}
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
-                onPress={askAI}
-                disabled={!input.trim() || loading}
-                activeOpacity={0.8}
-              >
-                {loading
-                  ? <ActivityIndicator size="small" color="#FFF" />
-                  : <Feather name="send" size={18} color="#FFF" />
-                }
-              </TouchableOpacity>
+              {isRecording && (
+                <View style={styles.recordingHint}>
+                  <Text style={styles.recordingHintText}>Enregistrement… appuie à nouveau pour terminer</Text>
+                </View>
+              )}
+
+              <View style={styles.inputControls}>
+                <TextInput
+                  style={styles.input}
+                  value={input}
+                  onChangeText={setInput}
+                  placeholder={isRecording ? "Enregistrement en cours…" : "Ex : Je veux faire du ndolé…"}
+                  placeholderTextColor={isRecording ? Colors.primary : "#aaa"}
+                  multiline
+                  maxLength={200}
+                  returnKeyType="send"
+                  onSubmitEditing={askAI}
+                  editable={!loading && !micBusy}
+                />
+
+                {/* Microphone toggle button */}
+                <TouchableOpacity
+                  style={[styles.micBtn, isRecording && styles.micBtnActive]}
+                  onPress={handleMicPress}
+                  disabled={loading || transcribing}
+                  activeOpacity={0.8}
+                >
+                  {transcribing ? (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  ) : isRecording ? (
+                    <View style={styles.waveContainer}>
+                      <Animated.View style={[styles.waveBar, { transform: [{ scaleY: wave1 }] }]} />
+                      <Animated.View style={[styles.waveBar, { transform: [{ scaleY: wave2 }] }]} />
+                      <Animated.View style={[styles.waveBar, { transform: [{ scaleY: wave3 }] }]} />
+                    </View>
+                  ) : (
+                    <Feather name="mic" size={18} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+
+                {/* Send button */}
+                <TouchableOpacity
+                  style={[styles.sendBtn, (!input.trim() || loading || micBusy) && styles.sendBtnDisabled]}
+                  onPress={askAI}
+                  disabled={!input.trim() || loading || micBusy}
+                  activeOpacity={0.8}
+                >
+                  {loading
+                    ? <ActivityIndicator size="small" color="#FFF" />
+                    : <Feather name="send" size={18} color="#FFF" />
+                  }
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -517,16 +748,60 @@ const styles = StyleSheet.create({
 
   emptyText: { textAlign: "center", color: "#999", fontSize: 13, padding: 16 },
 
+  // Input bar
   inputRow: {
-    flexDirection: "row", alignItems: "flex-end", gap: 10,
-    marginTop: 12, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: "#eee",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  recordingHint: {
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  recordingHintText: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  inputControls: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
   },
   input: {
     flex: 1, backgroundColor: "#F0F0F0", borderRadius: 22,
     paddingHorizontal: 16, paddingVertical: 12,
     fontSize: 14, color: "#111", maxHeight: 100,
   },
+
+  // Mic button
+  micBtn: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: "#F0F0F0",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.primary + "50",
+  },
+  micBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+
+  // Wave animation
+  waveContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    height: 20,
+  },
+  waveBar: {
+    width: 3,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: "#FFF",
+  },
+
   sendBtn: {
     width: 46, height: 46, borderRadius: 23,
     backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center",

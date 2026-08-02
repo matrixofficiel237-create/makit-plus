@@ -1,8 +1,16 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import multer from "multer";
+import fs from "fs";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { verifyAiToken } from "../lib/aiToken";
+import { findUserById } from "../store";
+import { getRecentOrdersByUser } from "../store";
 
 const router = Router();
 
+// ---------------------------------------------------------------------------
+// Makit+ AI assistant — free-form catalog-less system prompt
+// ---------------------------------------------------------------------------
 const SYSTEM_PROMPT = `Tu es l'assistant IA de Makit+, une application de livraison de produits du marché au Cameroun (Douala, Yaoundé).
 
 Makit+ ne possède pas de catalogue fixe. Les utilisateurs composent librement leur liste de courses.
@@ -76,7 +84,83 @@ BASE DE CONNAISSANCE — PLATS TRADITIONNELS CAMEROUNAIS (ingrédients exacts) :
 **Corn Tchap** : Grains de maïs sec trempés et bouillis, haricots rouges ou noirs bouillis, huile de palme rouge, oignons + piment + viande de bœuf (optionnel).
 ---`;
 
+// ---------------------------------------------------------------------------
+// Transcription helpers
+// ---------------------------------------------------------------------------
+const ALLOWED_AUDIO_MIMES = new Set([
+  "audio/m4a",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
+]);
+
+const upload = multer({
+  dest: "/tmp/audio-uploads/",
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB
+    files: 1,
+  },
+  fileFilter(_req, file, cb) {
+    if (ALLOWED_AUDIO_MIMES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Type de fichier non autorisé: ${file.mimetype}`));
+    }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Verify server-issued HMAC token (issued at login/register via aiToken lib)
+// ---------------------------------------------------------------------------
+function requireAiToken(req: Request, res: Response, next: NextFunction) {
+  const auth = req.headers["authorization"];
+  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  const userId = req.headers["x-user-id"] as string | undefined;
+
+  if (!token || !userId) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    res.status(401).json({ error: "Authentification requise." });
+    return;
+  }
+
+  if (!verifyAiToken(userId, token)) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    res.status(401).json({ error: "Token invalide." });
+    return;
+  }
+
+  next();
+}
+
+// ---------------------------------------------------------------------------
+// In-memory rate limiter — max 10 transcription requests per TCP IP per minute.
+// Uses req.socket.remoteAddress only (never X-Forwarded-For).
+// ---------------------------------------------------------------------------
+const transcribeRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const TRANSCRIBE_MAX_PER_MINUTE = 10;
+
+function transcribeRateLimit(req: Request, res: Response, next: NextFunction) {
+  const ip = req.socket.remoteAddress ?? "unknown";
+  const now = Date.now();
+  const bucket = transcribeRateLimitMap.get(ip);
+  if (!bucket || now >= bucket.resetAt) {
+    transcribeRateLimitMap.set(ip, { count: 1, resetAt: now + 60_000 });
+    return next();
+  }
+  bucket.count += 1;
+  if (bucket.count > TRANSCRIBE_MAX_PER_MINUTE) {
+    res.status(429).json({ error: "Trop de requêtes. Réessaie dans une minute." });
+    return;
+  }
+  next();
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/ai/assistant
+// ---------------------------------------------------------------------------
 router.post("/ai/assistant", async (req, res) => {
   const { message } = req.body as { message?: string };
 
@@ -128,5 +212,38 @@ router.post("/ai/assistant", async (req, res) => {
     res.status(500).json({ error: "Erreur de l'assistant IA. Réessaie dans un instant." });
   }
 });
+
+// ---------------------------------------------------------------------------
+// POST /api/ai/transcribe
+// ---------------------------------------------------------------------------
+router.post(
+  "/ai/transcribe",
+  upload.single("audio"),
+  requireAiToken,
+  transcribeRateLimit,
+  async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: "Fichier audio manquant." });
+      return;
+    }
+
+    const filePath = req.file.path;
+
+    try {
+      const transcription = await openai.audio.transcriptions.create({
+        model: "whisper-1",
+        file: fs.createReadStream(filePath) as unknown as File,
+        language: "fr",
+      });
+
+      res.json({ text: transcription.text });
+    } catch (err) {
+      console.error("[AI transcribe] erreur:", err);
+      res.status(500).json({ error: "La transcription a échoué. Réessaie." });
+    } finally {
+      fs.unlink(filePath, () => {});
+    }
+  }
+);
 
 export default router;

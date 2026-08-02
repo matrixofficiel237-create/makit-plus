@@ -22,6 +22,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  aiToken: string | null;
   isLoading: boolean;
   login: (telephone: string, motDePasse: string) => Promise<User | null>;
   register: (data: RegisterData) => Promise<User | null>;
@@ -31,6 +32,8 @@ interface AuthContextType {
   createManagedUser: (data: ManagedUserData) => Promise<User | null>;
   getManagedUsers: (role?: string) => Promise<User[]>;
   deleteManagedUser: (id: string) => Promise<void>;
+  /** Exchanges the current (still-valid) token for a fresh one. Returns the new token or null. */
+  refreshAiToken: () => Promise<string | null>;
 }
 
 interface RegisterData {
@@ -74,16 +77,21 @@ async function captureGPSSilently(userId: string, setUser: React.Dispatch<React.
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [aiToken, setAiToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => { loadUser(); }, []);
 
   async function loadUser() {
     try {
-      const userData = await AsyncStorage.getItem("makit_user");
+      const [userData, storedToken] = await Promise.all([
+        AsyncStorage.getItem("makit_user"),
+        AsyncStorage.getItem("makit_ai_token"),
+      ]);
       if (userData) {
         const cached = JSON.parse(userData);
         setUser(cached);
+        if (storedToken) setAiToken(storedToken);
         registerForPushNotifications(cached.id).catch(() => {});
         if (cached.role === "client") {
           captureGPSSilently(cached.id, setUser);
@@ -98,8 +106,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function login(telephone: string, motDePasse: string): Promise<User | null> {
-    const { user: u } = await api.auth.login(telephone, motDePasse);
+    const res = await api.auth.login(telephone, motDePasse);
+    const u = res.user;
+    const token: string | undefined = (res as Record<string, unknown>)["aiToken"] as string | undefined;
     await AsyncStorage.setItem("makit_user", JSON.stringify(u));
+    if (token) {
+      await AsyncStorage.setItem("makit_ai_token", token);
+      setAiToken(token);
+    }
     setUser(u);
     registerForPushNotifications(u.id).catch(() => {});
     if (u.role === "client") {
@@ -109,8 +123,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function register(data: RegisterData): Promise<User | null> {
-    const { user: u } = await api.auth.register(data);
+    const res = await api.auth.register(data);
+    const u = res.user;
+    const token: string | undefined = (res as Record<string, unknown>)["aiToken"] as string | undefined;
     await AsyncStorage.setItem("makit_user", JSON.stringify(u));
+    if (token) {
+      await AsyncStorage.setItem("makit_ai_token", token);
+      setAiToken(token);
+    }
     setUser(u);
     registerForPushNotifications(u.id).catch(() => {});
     if (u.role === "client") {
@@ -120,8 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout(): Promise<void> {
-    await AsyncStorage.removeItem("makit_user");
+    await AsyncStorage.multiRemove(["makit_user", "makit_ai_token"]);
     setUser(null);
+    setAiToken(null);
   }
 
   async function resetPassword(telephone: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
@@ -164,8 +185,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.users.delete(id);
   }
 
+  /**
+   * Exchanges the current (still-valid) aiToken for a fresh daily token.
+   * Calls the authenticated refresh endpoint — only works if the existing
+   * token has not already expired. Returns the new token on success, null otherwise.
+   */
+  async function refreshAiToken(): Promise<string | null> {
+    const currentToken = await AsyncStorage.getItem("makit_ai_token");
+    const currentUser = user;
+    if (!currentToken || !currentUser) return null;
+    try {
+      const res = await fetch(`${(await import("@/utils/api")).API_BASE}/auth/ai-token/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ userId: currentUser.id }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json() as { aiToken?: string };
+      if (!data.aiToken) return null;
+      await AsyncStorage.setItem("makit_ai_token", data.aiToken);
+      setAiToken(data.aiToken);
+      return data.aiToken;
+    } catch {
+      return null;
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, resetPassword, updateCredentials, createManagedUser, getManagedUsers, deleteManagedUser }}>
+    <AuthContext.Provider value={{ user, aiToken, isLoading, login, register, logout, resetPassword, updateCredentials, createManagedUser, getManagedUsers, deleteManagedUser, refreshAiToken }}>
       {children}
     </AuthContext.Provider>
   );
