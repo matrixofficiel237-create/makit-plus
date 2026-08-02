@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/utils/api";
@@ -143,6 +144,8 @@ export default function AIAssistant() {
   const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
   const [added, setAdded]                 = useState<Set<number>>(new Set());
   const [error, setError]                 = useState("");
+  const [successCount, setSuccessCount]   = useState(0);
+  const successAnim                       = useRef(new Animated.Value(0)).current;
 
   // History state
   const [history, setHistory]             = useState<HistoryEntry[]>([]);
@@ -409,6 +412,18 @@ export default function AIAssistant() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
+  function triggerSuccess(count: number) {
+    setSuccessCount(count);
+    successAnim.setValue(0);
+    Animated.spring(successAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 7,
+    }).start();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
   function handleAdd(item: EditableItem, index: number) {
     const nom  = item.editedNom.trim() || item.nom;
     const prix = Math.round(parseFloat(item.editedPrix) || item.prix);
@@ -419,11 +434,18 @@ export default function AIAssistant() {
       prix,
       emoji: getEmoji(nom, item.emoji),
     });
-    setAdded((prev) => new Set([...prev, index]));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newAdded = new Set([...added, index]);
+    setAdded(newAdded);
+    // If every item is now added, show success
+    if (newAdded.size >= editableItems.length) {
+      triggerSuccess(newAdded.size);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   }
 
   function handleAddAll() {
+    const total = editableItems.length;
     editableItems.forEach((item, i) => {
       const nom  = item.editedNom.trim() || item.nom;
       const prix = Math.round(parseFloat(item.editedPrix) || item.prix);
@@ -436,7 +458,7 @@ export default function AIAssistant() {
       });
     });
     setAdded(new Set(editableItems.map((_, i) => i)));
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    triggerSuccess(total);
   }
 
   function handleRemove(index: number) {
@@ -458,6 +480,7 @@ export default function AIAssistant() {
     setInput("");
     setAdded(new Set());
     setError("");
+    setSuccessCount(0);
   }
 
   return (
@@ -625,8 +648,46 @@ export default function AIAssistant() {
                     </View>
                   )}
 
+                  {/* Écran succès */}
+                  {successCount > 0 && (
+                    <Animated.View
+                      style={[
+                        styles.successWrap,
+                        {
+                          opacity: successAnim,
+                          transform: [{ scale: successAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
+                        },
+                      ]}
+                    >
+                      <View style={styles.successIcon}>
+                        <Text style={styles.successEmoji}>🛒</Text>
+                      </View>
+                      <Text style={styles.successTitle}>
+                        {successCount} article{successCount > 1 ? "s" : ""} ajouté{successCount > 1 ? "s" : ""} !
+                      </Text>
+                      <Text style={styles.successSub}>
+                        Ta liste de courses est prête dans le panier.
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.successCartBtn}
+                        onPress={() => {
+                          setOpen(false);
+                          router.push("/(tabs)/cart");
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Feather name="shopping-cart" size={16} color="#FFF" />
+                        <Text style={styles.successCartText}>Voir le panier</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.newSearchBtn} onPress={reset}>
+                        <Feather name="refresh-cw" size={13} color="#888" />
+                        <Text style={styles.newSearchText}>Nouvelle liste</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  )}
+
                   {/* Résultat */}
-                  {hasResult && (
+                  {hasResult && successCount === 0 && (
                     <View style={styles.resultWrap}>
                       <View style={styles.aiMessageBubble}>
                         <Text style={styles.aiMessageText}>{aiResponse}</Text>
@@ -1016,6 +1077,39 @@ const styles = StyleSheet.create({
   newSearchText: { fontSize: 12, color: "#888" },
 
   emptyText: { textAlign: "center", color: "#999", fontSize: 13, padding: 16 },
+
+  successWrap: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 12,
+  },
+  successIcon: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: Colors.primary + "18",
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 4,
+  },
+  successEmoji: { fontSize: 36 },
+  successTitle: {
+    fontSize: 22, fontWeight: "800", color: "#111",
+    textAlign: "center",
+  },
+  successSub: {
+    fontSize: 14, color: "#888", textAlign: "center",
+    lineHeight: 20, paddingHorizontal: 16,
+  },
+  successCartBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 28, paddingVertical: 14,
+    borderRadius: 28, marginTop: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  successCartText: { fontSize: 15, fontWeight: "700", color: "#FFF" },
 
   inputRow: {
     marginTop: 12,
