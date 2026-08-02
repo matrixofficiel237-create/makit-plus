@@ -3,9 +3,12 @@ import multer from "multer";
 import fs from "fs";
 import { execFile } from "child_process";
 import { promisify } from "util";
+// @ts-ignore — ffmpeg-static has no bundled types
+import ffmpegPath from "ffmpeg-static";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
 const execFileAsync = promisify(execFile);
+const FFMPEG = (ffmpegPath as string) ?? "ffmpeg";
 import { verifyAiToken } from "../lib/aiToken";
 import { findUserById } from "../store";
 import { getRecentOrdersByUser } from "../store";
@@ -236,7 +239,7 @@ router.post(
 
     try {
       // Convert whatever format React Native sends (m4a/aac) → WAV PCM 16-bit
-      await execFileAsync("ffmpeg", [
+      await execFileAsync(FFMPEG, [
         "-y", "-i", filePath,
         "-ar", "16000",   // 16 kHz — optimal for speech recognition
         "-ac", "1",       // mono
