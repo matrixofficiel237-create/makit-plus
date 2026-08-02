@@ -94,6 +94,15 @@ export async function getOrdersByUser(userId: string): Promise<StoredOrder[]> {
   return db.select().from(ordersTable).where(eq(ordersTable.userId, userId)).orderBy(desc(ordersTable.createdAt));
 }
 
+export async function getRecentOrdersByUser(userId: string, limit = 5): Promise<StoredOrder[]> {
+  return db
+    .select()
+    .from(ordersTable)
+    .where(eq(ordersTable.userId, userId))
+    .orderBy(desc(ordersTable.createdAt))
+    .limit(limit);
+}
+
 export async function createOrder(order: typeof ordersTable.$inferInsert): Promise<StoredOrder> {
   const rows = await db.insert(ordersTable).values(order).returning();
   return rows[0];

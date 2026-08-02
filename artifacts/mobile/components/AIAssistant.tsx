@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCart, Product } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/utils/api";
 import Colors from "@/constants/colors";
 
@@ -26,6 +27,7 @@ interface AISuggestion {
 
 export default function AIAssistant() {
   const { addItem } = useCart();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [open, setOpen]         = useState(false);
@@ -60,7 +62,7 @@ export default function AIAssistant() {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input.trim() }),
+        body: JSON.stringify({ message: input.trim(), userId: user?.id }),
       });
       if (!res.ok) throw new Error("Erreur serveur");
       const data: AISuggestion = await res.json();

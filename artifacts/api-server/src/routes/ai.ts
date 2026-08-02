@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { getRecentOrdersByUser } from "../store";
 
 const router = Router();
 
@@ -56,19 +57,53 @@ Règles importantes :
 
 // POST /api/ai/assistant
 router.post("/ai/assistant", async (req, res) => {
-  const { message } = req.body as { message?: string };
+  const { message, userId } = req.body as { message?: string; userId?: string };
 
   if (!message || typeof message !== "string" || !message.trim()) {
     res.status(400).json({ error: "Le champ 'message' est requis." });
     return;
   }
 
+  // Build order history context if the user is logged in
+  let orderHistorySection = "";
+  if (userId && typeof userId === "string" && userId.trim()) {
+    try {
+      const recentOrders = await getRecentOrdersByUser(userId.trim(), 5);
+      if (recentOrders.length > 0) {
+        // Extract product names from each order's items array
+        const allItems: string[] = [];
+        for (const order of recentOrders) {
+          const items = order.items as Array<{ nom?: string; quantite?: number }>;
+          if (Array.isArray(items)) {
+            for (const item of items) {
+              if (item.nom) {
+                const qty = item.quantite && item.quantite > 1 ? ` (×${item.quantite})` : "";
+                allItems.push(`${item.nom}${qty}`);
+              }
+            }
+          }
+        }
+
+        if (allItems.length > 0) {
+          orderHistorySection = `\n\nHistorique d'achats récents de cet utilisateur (5 dernières commandes) :
+${allItems.join(", ")}
+
+Utilise cet historique pour suggérer proactivement les produits qu'il commande souvent. Par exemple : "Tu commandes souvent des tomates — veux-tu les ajouter ?"`;
+        }
+      }
+    } catch {
+      // Non-blocking: continue without history if DB lookup fails
+    }
+  }
+
+  const systemPromptWithHistory = SYSTEM_PROMPT + orderHistorySection;
+
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-5.6-luna",
       max_completion_tokens: 512,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPromptWithHistory },
         { role: "user",   content: message.trim() },
       ],
       response_format: { type: "json_object" },
