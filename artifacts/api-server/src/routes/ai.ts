@@ -1,7 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import fs from "fs";
-import { toFile } from "openai/uploads";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { verifyAiToken } from "../lib/aiToken";
 import { findUserById } from "../store";
@@ -238,15 +237,14 @@ router.post(
                : "m4a";
 
     try {
-      // Pass file with explicit filename so the API can detect the format.
-      // multer saves without extension — toFile() adds the correct one.
+      // multer saves without extension — API needs filename with correct extension.
+      // Use native File constructor (Node 18+) so no extra imports are needed.
+      const buf  = fs.readFileSync(filePath);
+      const file = new File([buf], `audio.${ext}`, { type: mime });
+
       const transcription = await openai.audio.transcriptions.create({
         model: "gpt-4o-mini-transcribe",
-        file: await toFile(
-          fs.createReadStream(filePath),
-          `audio.${ext}`,
-          { type: mime }
-        ),
+        file,
         language: "fr",
         response_format: "json",
       });
