@@ -10,6 +10,7 @@ import paymentsRouter from "./payments";
 import notificationsRouter from "./notifications";
 import adminMapRouter from "./admin-map";
 import marchesRouter from "./marches";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use("/payments", paymentsRouter);
 router.use("/notifications", notificationsRouter);
 router.use(adminMapRouter);
 router.use("/", marchesRouter);
+router.use("/", aiRouter);
 
 export default router;

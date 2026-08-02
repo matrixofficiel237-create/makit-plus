@@ -20,6 +20,7 @@ import { useOrders } from "@/context/OrderContext";
 import { useCart } from "@/context/CartContext";
 import { useNotifications } from "@/context/NotificationsContext";
 import NotificationsModal from "@/components/NotificationsModal";
+import AIAssistant from "@/components/AIAssistant";
 import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -327,6 +328,7 @@ export default function HomeScreen() {
   const activeOrders = orders.filter((o) => o.statut !== "livre");
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -468,6 +470,10 @@ export default function HomeScreen() {
 
       <View style={{ height: Platform.OS === "web" ? 100 : 90 }} />
     </ScrollView>
+
+    {/* Bouton IA flottant — accessible depuis la home */}
+    <AIAssistant />
+    </View>
   );
 }
 
