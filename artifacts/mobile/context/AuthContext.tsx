@@ -96,9 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cached.role === "client") {
           captureGPSSilently(cached.id, setUser);
         }
-        api.auth.me(cached.id).then(async ({ user: fresh }) => {
+        api.auth.me(cached.id).then(async (meRes: Record<string, unknown>) => {
+          const fresh = meRes["user"] as typeof cached;
           await AsyncStorage.setItem("makit_user", JSON.stringify(fresh));
           setUser(fresh);
+          // Capture fresh aiToken — covers users who logged in before the
+          // voice feature was added and never received one.
+          const freshToken = meRes["aiToken"] as string | undefined;
+          if (freshToken) {
+            await AsyncStorage.setItem("makit_ai_token", freshToken);
+            setAiToken(freshToken);
+          }
         }).catch(() => {});
       }
     } catch {}

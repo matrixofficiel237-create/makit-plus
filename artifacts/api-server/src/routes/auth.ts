@@ -81,7 +81,9 @@ router.get("/me/:id", async (req, res) => {
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   const { motDePasse: _, ...safe } = user;
   const prixSpecial = await hasPrixSpecial(user);
-  res.json({ user: { ...safe, prixSpecial } });
+  // Always return a fresh aiToken so users who logged in before the
+  // voice feature was deployed receive one automatically on next app load.
+  res.json({ user: { ...safe, prixSpecial }, aiToken: signAiToken(user.id) });
 });
 
 /**
