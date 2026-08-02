@@ -1,131 +1,67 @@
 import { Router } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { getRecentOrdersByUser } from "../store";
 
 const router = Router();
 
-// Catalogue complet des produits disponibles
-const PRODUCTS = [
-  { id: "1",  nom: "Gombo",            categorie: "legumes",  prix: 500,  emoji: "🥬" },
-  { id: "2",  nom: "Aubergine",        categorie: "legumes",  prix: 600,  emoji: "🍆" },
-  { id: "3",  nom: "Courgette",        categorie: "legumes",  prix: 400,  emoji: "🥒" },
-  { id: "4",  nom: "Haricots verts",   categorie: "legumes",  prix: 450,  emoji: "🫘" },
-  { id: "5",  nom: "Chou",             categorie: "legumes",  prix: 350,  emoji: "🥬" },
-  { id: "6",  nom: "Épinards",         categorie: "legumes",  prix: 300,  emoji: "🥬" },
-  { id: "7",  nom: "Tomates fraîches", categorie: "tomates",  prix: 500,  emoji: "🍅" },
-  { id: "8",  nom: "Tomates cerises",  categorie: "tomates",  prix: 700,  emoji: "🍅" },
-  { id: "9",  nom: "Pâte de tomate",   categorie: "tomates",  prix: 300,  emoji: "🍅" },
-  { id: "10", nom: "Plantain mûr",     categorie: "plantain", prix: 600,  emoji: "🍌" },
-  { id: "11", nom: "Plantain vert",    categorie: "plantain", prix: 500,  emoji: "🍌" },
-  { id: "12", nom: "Régime de plantain", categorie: "plantain", prix: 2000, emoji: "🍌" },
-  { id: "13", nom: "Poisson frais",    categorie: "poisson",  prix: 2500, emoji: "🐟" },
-  { id: "14", nom: "Poisson fumé",     categorie: "poisson",  prix: 1500, emoji: "🐟" },
-  { id: "15", nom: "Crevettes",        categorie: "poisson",  prix: 3000, emoji: "🦐" },
-  { id: "16", nom: "Sardines",         categorie: "poisson",  prix: 1000, emoji: "🐟" },
-  { id: "17", nom: "Poulet entier",    categorie: "viande",   prix: 5000, emoji: "🍗" },
-  { id: "18", nom: "Bœuf haché",       categorie: "viande",   prix: 3500, emoji: "🥩" },
-  { id: "19", nom: "Porc",             categorie: "viande",   prix: 4000, emoji: "🥩" },
-  { id: "20", nom: "Mouton",           categorie: "viande",   prix: 4500, emoji: "🥩" },
-  { id: "21", nom: "Oignon",           categorie: "epices",   prix: 300,  emoji: "🧅" },
-  { id: "22", nom: "Ail",              categorie: "epices",   prix: 250,  emoji: "🧄" },
-  { id: "23", nom: "Piment",           categorie: "epices",   prix: 200,  emoji: "🌶️" },
-  { id: "24", nom: "Gingembre",        categorie: "epices",   prix: 300,  emoji: "🫚" },
-  { id: "25", nom: "Poivre",           categorie: "epices",   prix: 350,  emoji: "🧂" },
-  { id: "26", nom: "Cube Maggi",       categorie: "epices",   prix: 150,  emoji: "🧂" },
-];
+const SYSTEM_PROMPT = `Tu es l'assistant IA de Makit+, une application de livraison de produits du marché au Cameroun (Douala, Yaoundé).
 
-const SYSTEM_PROMPT = `Tu es l'assistant IA de Makit+, une application de livraison de produits du marché au Cameroun.
-Tu aides les personnes, notamment celles en situation de handicap, à créer facilement leur liste de courses.
+Makit+ ne possède pas de catalogue fixe. Les utilisateurs composent librement leur liste de courses.
+Ton rôle est d'aider l'utilisateur à préparer sa liste en comprenant ce qu'il veut cuisiner ou acheter, puis en lui proposant les articles nécessaires avec des prix réalistes en FCFA (marché camerounais 2025).
 
-Voici le catalogue disponible (JSON) :
-${JSON.stringify(PRODUCTS)}
-
-Quand l'utilisateur décrit ce qu'il veut (en français, fongbé, langue locale ou peu importe), tu dois :
-1. Répondre chaleureusement et simplement (2-3 phrases max).
-2. Identifier les produits correspondants dans le catalogue.
+Quand l'utilisateur décrit sa demande (recette, repas, besoin du quotidien), tu dois :
+1. Répondre chaleureusement et brièvement (1-2 phrases).
+2. Lister les articles nécessaires avec un prix unitaire réaliste en FCFA.
 3. Retourner UNIQUEMENT un objet JSON valide au format :
 {
-  "response": "ton message d'accueil bref",
-  "productIds": ["1", "7", "21"]
+  "response": "ton message bref",
+  "items": [
+    { "nom": "Tomates fraîches", "prix": 500, "emoji": "🍅" },
+    { "nom": "Oignon", "prix": 300, "emoji": "🧅" }
+  ]
 }
 
-Règles importantes :
-- Si une recette est mentionnée (ex: sauce tomate, ndolé, eru), propose tous les ingrédients nécessaires.
-- Si l'utilisateur dit "légumes", propose une sélection variée de légumes.
-- Prix en FCFA. Sois inclusif et bienveillant.
+Règles :
+- Les prix sont en FCFA, basés sur les prix réels des marchés camerounais.
+- Utilise des emojis pertinents pour chaque article.
+- Pour une recette, propose tous les ingrédients de base nécessaires.
+- Si la demande est vague ("légumes"), propose une sélection variée et utile.
+- Sois inclusif et bienveillant — certains utilisateurs sont en situation de handicap.
 - Ne renvoie JAMAIS autre chose que le JSON demandé.`;
 
 // POST /api/ai/assistant
 router.post("/ai/assistant", async (req, res) => {
-  const { message, userId } = req.body as { message?: string; userId?: string };
+  const { message } = req.body as { message?: string };
 
   if (!message || typeof message !== "string" || !message.trim()) {
     res.status(400).json({ error: "Le champ 'message' est requis." });
     return;
   }
 
-  // Build order history context if the user is logged in
-  let orderHistorySection = "";
-  if (userId && typeof userId === "string" && userId.trim()) {
-    try {
-      const recentOrders = await getRecentOrdersByUser(userId.trim(), 5);
-      if (recentOrders.length > 0) {
-        // Extract product names from each order's items array
-        const allItems: string[] = [];
-        for (const order of recentOrders) {
-          const items = order.items as Array<{ nom?: string; quantite?: number }>;
-          if (Array.isArray(items)) {
-            for (const item of items) {
-              if (item.nom) {
-                const qty = item.quantite && item.quantite > 1 ? ` (×${item.quantite})` : "";
-                allItems.push(`${item.nom}${qty}`);
-              }
-            }
-          }
-        }
-
-        if (allItems.length > 0) {
-          orderHistorySection = `\n\nHistorique d'achats récents de cet utilisateur (5 dernières commandes) :
-${allItems.join(", ")}
-
-Utilise cet historique pour suggérer proactivement les produits qu'il commande souvent. Par exemple : "Tu commandes souvent des tomates — veux-tu les ajouter ?"`;
-        }
-      }
-    } catch {
-      // Non-blocking: continue without history if DB lookup fails
-    }
-  }
-
-  const systemPromptWithHistory = SYSTEM_PROMPT + orderHistorySection;
-
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-5.6-luna",
       max_completion_tokens: 512,
       messages: [
-        { role: "system", content: systemPromptWithHistory },
+        { role: "system", content: SYSTEM_PROMPT },
         { role: "user",   content: message.trim() },
       ],
       response_format: { type: "json_object" },
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    let parsed: { response?: string; productIds?: string[] };
+    let parsed: { response?: string; items?: { nom: string; prix: number; emoji: string }[] };
 
     try {
       parsed = JSON.parse(raw);
     } catch {
-      parsed = { response: "Je n'ai pas compris. Reformule ta demande.", productIds: [] };
+      parsed = { response: "Je n'ai pas compris. Reformule ta demande.", items: [] };
     }
 
-    const suggestedIds = (parsed.productIds ?? []).filter((id) =>
-      PRODUCTS.some((p) => p.id === id)
-    );
-    const products = PRODUCTS.filter((p) => suggestedIds.includes(p.id));
-
     res.json({
-      response: parsed.response ?? "Voici ce que j'ai trouvé pour toi.",
-      products,
+      response: parsed.response ?? "Voici ce que je te suggère.",
+      items: (parsed.items ?? []).filter(
+        (i) => typeof i.nom === "string" && typeof i.prix === "number" && i.prix > 0
+      ),
     });
   } catch (err) {
     console.error("[AI assistant] erreur:", err);
