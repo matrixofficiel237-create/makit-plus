@@ -97,7 +97,10 @@ export default function AIAssistant() {
       });
       if (!res.ok) throw new Error("Erreur serveur");
       const data: AIResult = await res.json();
-      setResult(data);
+      setResult({
+        response: data.response ?? "Voici ce que je te suggère.",
+        items: Array.isArray(data.items) ? data.items : [],
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       setError("Je n'arrive pas à répondre pour le moment. Réessaie.");
