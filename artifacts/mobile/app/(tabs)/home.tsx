@@ -69,43 +69,64 @@ type HeroProps = {
 };
 
 function HeroCarousel({ onOrder, onNotifs, onCart, userName, cartCount, unreadCount, topPad }: HeroProps) {
-  const [idx, setIdx] = useState(0);
-  const opacity = useRef(new Animated.Value(1)).current;
+  const [currIdx, setCurrIdx] = useState(0);
+  const [prevIdx, setPrevIdx] = useState(0);
+  const crossfade  = useRef(new Animated.Value(1)).current; // 1 = currIdx fully visible
+  const textOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const timer = setInterval(() => {
-      Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true })
+      const next = (currIdx + 1) % HERO_SLIDES.length;
+
+      // 1. Fade out only the text (fast)
+      Animated.timing(textOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start();
+
+      // 2. Begin crossfade: push curr to prev layer, bring next on top from 0→1
+      setPrevIdx(currIdx);
+      setCurrIdx(next);
+      crossfade.setValue(0);
+      Animated.timing(crossfade, { toValue: 1, duration: 600, useNativeDriver: true })
         .start(() => {
-          setIdx((i) => (i + 1) % HERO_SLIDES.length);
-          Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+          // 3. Fade text back in once image is settled
+          Animated.timing(textOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
         });
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [currIdx]);
 
-  const slide = HERO_SLIDES[idx];
+  const curr = HERO_SLIDES[currIdx];
+  const prev = HERO_SLIDES[prevIdx];
 
   return (
     <View style={[heroStyles.wrapper, { overflow: "hidden" }]}>
 
-      {/* Photo + texte : les deux fadent ensemble */}
-      <Animated.View style={[heroStyles.photoWrap, { opacity }]}>
-        <Image source={slide.image} style={heroStyles.photo} resizeMode="cover" />
-        {/* Gradient par-dessus la photo */}
-        <LinearGradient
-          colors={["rgba(0,0,0,0.50)", "transparent", "rgba(0,0,0,0.68)"]}
-          locations={[0, 0.38, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        {/* Zone texte — position fixe, le bouton est séparé */}
+      {/* Layer 1 (bottom): previous slide — always fully visible underneath */}
+      <View style={heroStyles.photoWrap}>
+        <Image source={prev.image} style={heroStyles.photo} resizeMode="cover" />
+      </View>
+
+      {/* Layer 2 (top): current slide fading in — crossfade, no white gap */}
+      <Animated.View style={[heroStyles.photoWrap, { opacity: crossfade }]}>
+        <Image source={curr.image} style={heroStyles.photo} resizeMode="cover" />
+      </Animated.View>
+
+      {/* Gradient always on top of both image layers */}
+      <LinearGradient
+        colors={["rgba(0,0,0,0.50)", "transparent", "rgba(0,0,0,0.68)"]}
+        locations={[0, 0.38, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+
+      {/* Text + button fade independently */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: textOpacity }]}>
         <View style={heroStyles.textZone}>
-          <Text style={heroStyles.title} numberOfLines={3}>{slide.title}</Text>
-          <Text style={heroStyles.accent} numberOfLines={2}>{slide.accent}</Text>
-          <Text style={heroStyles.desc} numberOfLines={2}>{slide.desc}</Text>
+          <Text style={heroStyles.title} numberOfLines={3}>{curr.title}</Text>
+          <Text style={heroStyles.accent} numberOfLines={2}>{curr.accent}</Text>
+          <Text style={heroStyles.desc} numberOfLines={2}>{curr.desc}</Text>
         </View>
-        {/* Bouton — position absolue indépendante, ne bougera jamais */}
         <TouchableOpacity style={heroStyles.btn} onPress={onOrder} activeOpacity={0.85}>
           <Feather name="shopping-bag" size={16} color="#FFF" />
           <Text style={heroStyles.btnText}>Commander maintenant</Text>
@@ -144,7 +165,7 @@ function HeroCarousel({ onOrder, onNotifs, onCart, userName, cartCount, unreadCo
       {/* Dots — toujours visibles */}
       <View style={heroStyles.dots}>
         {HERO_SLIDES.map((_, i) => (
-          <View key={i} style={[heroStyles.dot, i === idx && heroStyles.dotActive]} />
+          <View key={i} style={[heroStyles.dot, i === currIdx && heroStyles.dotActive]} />
         ))}
       </View>
     </View>
