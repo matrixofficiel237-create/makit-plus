@@ -147,6 +147,10 @@ export default function AIAssistant() {
   const [successCount, setSuccessCount]   = useState(0);
   const successAnim                       = useRef(new Animated.Value(0)).current;
 
+  // Custom item form
+  const [customNom, setCustomNom]   = useState("");
+  const [customPrix, setCustomPrix] = useState("");
+
   // History state
   const [history, setHistory]             = useState<HistoryEntry[]>([]);
   const [activeTab, setActiveTab]         = useState<"search" | "history">("search");
@@ -474,6 +478,19 @@ export default function AIAssistant() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
+  function handleAddCustom() {
+    const nom  = customNom.trim();
+    const prix = Math.round(parseFloat(customPrix) || 0);
+    if (!nom || prix <= 0) return;
+    setEditableItems((prev) => [
+      ...prev,
+      { nom, prix, emoji: "", editedNom: nom, editedPrix: String(prix) },
+    ]);
+    setCustomNom("");
+    setCustomPrix("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
   function reset() {
     setAiResponse("");
     setEditableItems([]);
@@ -481,6 +498,8 @@ export default function AIAssistant() {
     setAdded(new Set());
     setError("");
     setSuccessCount(0);
+    setCustomNom("");
+    setCustomPrix("");
   }
 
   return (
@@ -762,6 +781,42 @@ export default function AIAssistant() {
                               </View>
                             );
                           })}
+
+                          {/* Ajouter un ingrédient manquant */}
+                          <View style={styles.customItemWrap}>
+                            <Text style={styles.customItemLabel}>+ Ajouter un ingrédient manquant</Text>
+                            <View style={styles.customItemRow}>
+                              <TextInput
+                                style={styles.customNomInput}
+                                value={customNom}
+                                onChangeText={setCustomNom}
+                                placeholder="Nom de l'ingrédient"
+                                placeholderTextColor="#bbb"
+                                returnKeyType="next"
+                              />
+                              <TextInput
+                                style={styles.customPrixInput}
+                                value={customPrix}
+                                onChangeText={(v) => setCustomPrix(v.replace(/[^0-9]/g, ""))}
+                                placeholder="Prix"
+                                placeholderTextColor="#bbb"
+                                keyboardType="numeric"
+                                returnKeyType="done"
+                                onSubmitEditing={handleAddCustom}
+                              />
+                              <TouchableOpacity
+                                style={[
+                                  styles.customAddBtn,
+                                  (!customNom.trim() || !customPrix) && styles.customAddBtnDisabled,
+                                ]}
+                                onPress={handleAddCustom}
+                                disabled={!customNom.trim() || !customPrix}
+                                activeOpacity={0.8}
+                              >
+                                <Feather name="plus" size={18} color="#FFF" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
 
                           <TouchableOpacity style={styles.newSearchBtn} onPress={reset}>
                             <Feather name="refresh-cw" size={13} color="#888" />
@@ -1075,6 +1130,36 @@ const styles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1, borderColor: "#ddd",
   },
   newSearchText: { fontSize: 12, color: "#888" },
+
+  customItemWrap: {
+    borderWidth: 1, borderColor: Colors.primary + "30",
+    borderRadius: 16, padding: 12, gap: 8,
+    backgroundColor: "#F6FDF6",
+  },
+  customItemLabel: {
+    fontSize: 12, fontWeight: "700", color: Colors.primary,
+  },
+  customItemRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+  },
+  customNomInput: {
+    flex: 1, backgroundColor: "#FFF", borderRadius: 10,
+    borderWidth: 1, borderColor: "#E0E0E0",
+    paddingHorizontal: 12, paddingVertical: 9,
+    fontSize: 13, color: "#111",
+  },
+  customPrixInput: {
+    width: 80, backgroundColor: "#FFF", borderRadius: 10,
+    borderWidth: 1, borderColor: "#E0E0E0",
+    paddingHorizontal: 10, paddingVertical: 9,
+    fontSize: 13, color: "#111", textAlign: "center",
+  },
+  customAddBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.primary,
+    alignItems: "center", justifyContent: "center",
+  },
+  customAddBtnDisabled: { backgroundColor: "#ccc" },
 
   emptyText: { textAlign: "center", color: "#999", fontSize: 13, padding: 16 },
 
