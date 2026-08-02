@@ -231,9 +231,10 @@ router.post(
 
     try {
       const transcription = await openai.audio.transcriptions.create({
-        model: "whisper-1",
+        model: "gpt-4o-mini-transcribe",
         file: fs.createReadStream(filePath) as unknown as File,
         language: "fr",
+        response_format: "json",
       });
 
       res.json({ text: transcription.text });
