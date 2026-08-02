@@ -356,6 +356,21 @@ export default function AIAssistant() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
+  function handleRemove(index: number) {
+    setEditableItems((prev) => prev.filter((_, i) => i !== index));
+    // Shift indices in `added`: remove the deleted index, decrement all above it
+    setAdded((prev) => {
+      const next = new Set<number>();
+      prev.forEach((idx) => {
+        if (idx < index) next.add(idx);
+        else if (idx > index) next.add(idx - 1);
+        // idx === index: omit it (item removed)
+      });
+      return next;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
   function reset() {
     setAiResponse("");
     setEditableItems([]);
@@ -514,13 +529,24 @@ export default function AIAssistant() {
                               </View>
                             </View>
 
-                            <TouchableOpacity
-                              style={[styles.addBtn, isAdded && styles.addBtnDone]}
-                              onPress={() => !isAdded && handleAdd(item, i)}
-                              activeOpacity={isAdded ? 1 : 0.8}
-                            >
-                              <Feather name={isAdded ? "check" : "plus"} size={16} color="#FFF" />
-                            </TouchableOpacity>
+                            <View style={styles.cardActions}>
+                              {!isAdded && (
+                                <TouchableOpacity
+                                  style={styles.removeBtn}
+                                  onPress={() => handleRemove(i)}
+                                  activeOpacity={0.8}
+                                >
+                                  <Feather name="trash-2" size={14} color="#e53935" />
+                                </TouchableOpacity>
+                              )}
+                              <TouchableOpacity
+                                style={[styles.addBtn, isAdded && styles.addBtnDone]}
+                                onPress={() => !isAdded && handleAdd(item, i)}
+                                activeOpacity={isAdded ? 1 : 0.8}
+                              >
+                                <Feather name={isAdded ? "check" : "plus"} size={16} color="#FFF" />
+                              </TouchableOpacity>
+                            </View>
                           </View>
                         );
                       })}
@@ -733,6 +759,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
 
+  cardActions: {
+    flexDirection: "column", alignItems: "center", gap: 6,
+  },
+  removeBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: "#FFEBEE", alignItems: "center", justifyContent: "center",
+  },
   addBtn: {
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center",
