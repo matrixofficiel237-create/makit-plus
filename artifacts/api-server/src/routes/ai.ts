@@ -23,10 +23,58 @@ Quand l'utilisateur décrit sa demande (recette, repas, besoin du quotidien), tu
 Règles :
 - Les prix sont en FCFA, basés sur les prix réels des marchés camerounais.
 - Utilise des emojis pertinents pour chaque article.
-- Pour une recette, propose tous les ingrédients de base nécessaires.
+- Pour une recette, utilise les ingrédients précis de la base de connaissance ci-dessous.
 - Si la demande est vague ("légumes"), propose une sélection variée et utile.
 - Sois inclusif et bienveillant — certains utilisateurs sont en situation de handicap.
-- Ne renvoie JAMAIS autre chose que le JSON demandé.`;
+- Ne renvoie JAMAIS autre chose que le JSON demandé.
+
+---
+BASE DE CONNAISSANCE — PLATS TRADITIONNELS CAMEROUNAIS (ingrédients exacts) :
+
+## Plats à base de feuilles vertes
+
+**Ndolè** : Feuilles de ndolè fraîches (ou congelées) blanchies et lavées, arachides fraîches écorchées et ébouillantées, viande de bœuf / poisson fumé / crevettes fraîches, oignons + ail + gingembre écrasés, huile raffinée.
+
+**Eru** : Feuilles d'eru (okazi) séchées ou fraîches finement coupées, feuilles de Water leaf (épinards sauvages), peau de bœuf cuite (kanda) / tripes / viande de bœuf, poissons fumés + écrevisses séchées moulues, huile de palme rouge + piment jaune.
+
+**Okok** : Feuilles d'okok découpées finement, pâte d'arachides grillées, jus de noix de palme fraîches (sauce graine), sucre (optionnel), sel ou cube d'assaisonnement.
+
+**Kwem** : Feuilles de manioc fraîches pilées, jus de noix de palme fraîches épais, sel (variante moderne), crevettes ou poisson fumé (optionnel).
+
+**Sanga** : Feuilles de zo'o (brèdes) ou jeunes feuilles de courge, grains de maïs frais doux, jus de noix de palme fraîches.
+
+## Mets en papillote
+
+**Koki** : Haricots cornille blancs, huile de palme rouge liquide tiède, piment piquant, feuilles de bananier.
+
+**Nkouo Ngond (pistache)** : Graines de courge moulues, viande de bœuf hachée / poisson fumé, œufs, oignons + sel, feuilles de bananier.
+
+**Mintoumba** : Tubercules de manioc fermentés, huile de palme rouge, piment + sel, feuilles de bananier.
+
+**Kouakoukou** : Tubercules de macabo blanc râpés, huile raffinée, sel, feuilles de bananier (servi avec sauce arachides ou gombo).
+
+## Purées, pilés et sauces rituelles
+
+**Achu (Taro sauce jaune)** : Tubercules de taro (macabo rouge) bouillis et pilés, huile de palme rouge, calcaire (kanwa), épices Achu (pebe, liman, lélé…), viande de bœuf + kanda + tripes.
+
+**Nkui** : Écorce de plante Nkui, mélange d'épices bamiléké (ngansang, pebe, hiomi, chili…), sel + cube (servi avec couscous de maïs).
+
+**Kondrè** : Bananes plantains vertes épluchées, viande de chèvre / porc / bœuf, tomates + oignons + ail + gingembre, épices (djansan, pebe, poivre de Penja), huile de palme rouge.
+
+**Ekwang** : Macabo blanc râpé, jeunes feuilles de macabo tendres, huile de palme rouge en grande quantité, écrevisses séchées moulues + poisson fumé, piment jaune + ail + oignons.
+
+## Sauces sombres, ragoûts et grillades
+
+**Mbongo Tchobi** : Graines de mbongo torréfiées et moulues (noires), morceaux de poisson (capitaine / mâchoiron) ou viande, tomates + oignons + ail + gingembre, huile raffinée, djansan (optionnel).
+
+**Poulet DG** : Poulet entier découpé, bananes plantains mûres frites, carottes + poivrons (vert/rouge/jaune) + haricots verts, tomates + oignons + poireaux + ail + gingembre + céleri, huile raffinée.
+
+**Poisson braisé** : Poissons entiers (maquereau / bar / sole / carpe), djansan + pebe + poivre de Penja, ail + gingembre + oignons + piment fort, huile raffinée.
+
+**Soya** : Faux-filet de bœuf ou viande de mouton en lamelles, poudre de Kankan (cacahuètes torréfiées moulues + piment + sel + épices), huile raffinée.
+
+**Corn Tchap** : Grains de maïs sec trempés et bouillis, haricots rouges ou noirs bouillis, huile de palme rouge, oignons + piment + viande de bœuf (optionnel).
+---`;
 
 // POST /api/ai/assistant
 router.post("/ai/assistant", async (req, res) => {
@@ -40,21 +88,33 @@ router.post("/ai/assistant", async (req, res) => {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-5.6-luna",
-      max_completion_tokens: 512,
+      max_completion_tokens: 1024,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user",   content: message.trim() },
       ],
-      response_format: { type: "json_object" },
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
+    console.log("[AI raw]", raw.substring(0, 300));
+
     let parsed: { response?: string; items?: { nom: string; prix: number; emoji: string }[] };
 
     try {
+      // Try direct parse first
       parsed = JSON.parse(raw);
     } catch {
-      parsed = { response: "Je n'ai pas compris. Reformule ta demande.", items: [] };
+      // Extract JSON block if wrapped in markdown code fences
+      const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
+      if (match) {
+        try {
+          parsed = JSON.parse(match[1]);
+        } catch {
+          parsed = { response: "Je n'ai pas compris. Reformule ta demande.", items: [] };
+        }
+      } else {
+        parsed = { response: "Je n'ai pas compris. Reformule ta demande.", items: [] };
+      }
     }
 
     res.json({
