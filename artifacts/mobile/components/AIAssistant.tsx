@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -33,6 +34,69 @@ interface EditableItem {
   emoji: string;
   editedNom: string;
   editedPrix: string;
+}
+
+interface HistoryEntry {
+  id: string;
+  query: string;
+  response: string;
+  items: AIItem[];
+  createdAt: number; // ms timestamp
+}
+
+const HISTORY_KEY = "ai_list_history_v1";
+const HISTORY_MAX = 5;
+
+async function loadHistory(): Promise<HistoryEntry[]> {
+  try {
+    const raw = await AsyncStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as HistoryEntry[];
+  } catch {
+    return [];
+  }
+}
+
+async function saveHistory(entries: HistoryEntry[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  } catch {
+    // Silently ignore storage errors
+  }
+}
+
+async function appendToHistory(
+  history: HistoryEntry[],
+  query: string,
+  response: string,
+  items: AIItem[]
+): Promise<HistoryEntry[]> {
+  const entry: HistoryEntry = {
+    id: `${Date.now()}`,
+    query: query.trim(),
+    response,
+    items,
+    createdAt: Date.now(),
+  };
+  // Avoid duplicate of the exact same query as the most recent entry
+  const filtered = history.filter(
+    (h) => h.query.toLowerCase() !== entry.query.toLowerCase()
+  );
+  const updated = [entry, ...filtered].slice(0, HISTORY_MAX);
+  await saveHistory(updated);
+  return updated;
+}
+
+function formatRelativeDate(ts: number): string {
+  const diff = Date.now() - ts;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (minutes < 2) return "à l'instant";
+  if (minutes < 60) return `il y a ${minutes} min`;
+  if (hours < 24) return `il y a ${hours}h`;
+  if (days === 1) return "hier";
+  return `il y a ${days} jours`;
 }
 
 const EMOJI_MAP: Record<string, string> = {
@@ -80,14 +144,15 @@ export default function AIAssistant() {
   const [added, setAdded]                 = useState<Set<number>>(new Set());
   const [error, setError]                 = useState("");
 
+  // History state
+  const [history, setHistory]             = useState<HistoryEntry[]>([]);
+  const [activeTab, setActiveTab]         = useState<"search" | "history">("search");
+
   // Voice recording state
   const [isRecording, setIsRecording]   = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  // Ref holds the live Recording instance — never stale in callbacks
   const recordingRef  = useRef<Audio.Recording | null>(null);
-  // Lock: set synchronously before async start to prevent concurrent presses
   const startingRef   = useRef(false);
-  // Generation counter: incremented on close/unmount to cancel in-flight starts
   const generationRef = useRef(0);
 
   const hasResult = aiResponse !== "" || editableItems.length > 0;
@@ -98,6 +163,13 @@ export default function AIAssistant() {
   const wave2     = useRef(new Animated.Value(0.5)).current;
   const wave3     = useRef(new Animated.Value(0.4)).current;
   const waveLoop  = useRef<Animated.CompositeAnimation | null>(null);
+
+  // Load history when modal opens
+  useEffect(() => {
+    if (open) {
+      loadHistory().then(setHistory);
+    }
+  }, [open]);
 
   React.useEffect(() => {
     const loop = Animated.loop(
@@ -110,10 +182,8 @@ export default function AIAssistant() {
     return () => loop.stop();
   }, []);
 
-  // Clean up any active recording when the component unmounts
   React.useEffect(() => {
     return () => {
-      // Increment generation so any in-flight start aborts after its next await
       generationRef.current += 1;
       recordingRef.current?.stopAndUnloadAsync().catch(() => {});
       recordingRef.current = null;
@@ -122,7 +192,6 @@ export default function AIAssistant() {
 
   /** Stops any active recording, cancels any in-flight start, then closes the sheet. */
   function closeSheet() {
-    // Invalidate any in-flight start by advancing the generation
     generationRef.current += 1;
     if (recordingRef.current) {
       const rec = recordingRef.current;
@@ -158,22 +227,8 @@ export default function AIAssistant() {
     wave3.setValue(0.4);
   }
 
-  /** Stops any active recording, resets mic state, then closes the sheet. */
-  function closeSheet() {
-    if (recordingRef.current) {
-      const rec = recordingRef.current;
-      recordingRef.current = null;
-      setIsRecording(false);
-      stopWaveAnimation();
-      rec.stopAndUnloadAsync().catch(() => {});
-    }
-    setOpen(false);
-  }
-
-  // Toggle mic: first press starts recording, second press stops + transcribes
   const handleMicPress = useCallback(async () => {
     if (recordingRef.current) {
-      // --- STOP ---
       const rec = recordingRef.current;
       recordingRef.current = null;
       setIsRecording(false);
@@ -209,7 +264,6 @@ export default function AIAssistant() {
           body: formData,
         });
 
-        // If token expired, attempt a secure refresh and retry once
         if (res.status === 401) {
           const newToken = await refreshAiToken();
           if (newToken) {
@@ -237,14 +291,13 @@ export default function AIAssistant() {
         setTranscribing(false);
       }
     } else {
-      // --- START (with concurrent-press guard + cancellation by generation) ---
-      if (startingRef.current) return; // already starting, ignore
+      if (startingRef.current) return;
       startingRef.current = true;
-      const myGen = generationRef.current; // snapshot generation at start
+      const myGen = generationRef.current;
 
       try {
         const { granted } = await Audio.requestPermissionsAsync();
-        if (generationRef.current !== myGen) return; // sheet closed during permission
+        if (generationRef.current !== myGen) return;
         if (!granted) {
           setError("Permission micro refusée. Active-la dans les paramètres.");
           return;
@@ -254,18 +307,16 @@ export default function AIAssistant() {
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
         });
-        if (generationRef.current !== myGen) return; // sheet closed during audio mode setup
+        if (generationRef.current !== myGen) return;
 
         const rec = new Audio.Recording();
         await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
         if (generationRef.current !== myGen) {
-          // Sheet closed during prepare — unload the new recording immediately
           rec.stopAndUnloadAsync().catch(() => {});
           return;
         }
         await rec.startAsync();
         if (generationRef.current !== myGen) {
-          // Sheet closed during start — stop and discard
           rec.stopAndUnloadAsync().catch(() => {});
           return;
         }
@@ -284,7 +335,6 @@ export default function AIAssistant() {
     }
   }, [user, aiToken]);
 
-  // Update a single field of one item
   function updateItem(index: number, field: "editedNom" | "editedPrix", value: string) {
     setEditableItems((prev) =>
       prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
@@ -298,6 +348,7 @@ export default function AIAssistant() {
     setEditableItems([]);
     setError("");
     setAdded(new Set());
+    setActiveTab("search");
 
     try {
       const res = await fetch(`${API_BASE}/ai/assistant`, {
@@ -309,7 +360,9 @@ export default function AIAssistant() {
       const data: { response?: string; items?: AIItem[] } = await res.json();
 
       const items = Array.isArray(data.items) ? data.items : [];
-      setAiResponse(data.response ?? "Voici ce que je te suggère.");
+      const response = data.response ?? "Voici ce que je te suggère.";
+
+      setAiResponse(response);
       setEditableItems(
         items.map((item) => ({
           ...item,
@@ -317,6 +370,11 @@ export default function AIAssistant() {
           editedPrix: String(item.prix),
         }))
       );
+
+      // Save to history
+      const updated = await appendToHistory(history, input.trim(), response, items);
+      setHistory(updated);
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       setError("Je n'arrive pas à répondre pour le moment. Réessaie.");
@@ -324,6 +382,31 @@ export default function AIAssistant() {
     } finally {
       setLoading(false);
     }
+  }
+
+  /** Load a history entry into the result view */
+  function loadHistoryEntry(entry: HistoryEntry) {
+    setInput(entry.query);
+    setAiResponse(entry.response);
+    setEditableItems(
+      entry.items.map((item) => ({
+        ...item,
+        editedNom: item.nom,
+        editedPrix: String(item.prix),
+      }))
+    );
+    setAdded(new Set());
+    setError("");
+    setActiveTab("search");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  /** Delete a single history entry */
+  async function deleteHistoryEntry(id: string) {
+    const updated = history.filter((h) => h.id !== id);
+    setHistory(updated);
+    await saveHistory(updated);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   function handleAdd(item: EditableItem, index: number) {
@@ -358,13 +441,11 @@ export default function AIAssistant() {
 
   function handleRemove(index: number) {
     setEditableItems((prev) => prev.filter((_, i) => i !== index));
-    // Shift indices in `added`: remove the deleted index, decrement all above it
     setAdded((prev) => {
       const next = new Set<number>();
       prev.forEach((idx) => {
         if (idx < index) next.add(idx);
         else if (idx > index) next.add(idx - 1);
-        // idx === index: omit it (item removed)
       });
       return next;
     });
@@ -423,145 +504,217 @@ export default function AIAssistant() {
               </TouchableOpacity>
             </View>
 
+            {/* Tab bar — only show when no active result */}
+            {!hasResult && !loading && history.length > 0 && (
+              <View style={styles.tabBar}>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === "search" && styles.tabActive]}
+                  onPress={() => setActiveTab("search")}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="search" size={13} color={activeTab === "search" ? Colors.primary : "#999"} />
+                  <Text style={[styles.tabText, activeTab === "search" && styles.tabTextActive]}>
+                    Recherche
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === "history" && styles.tabActive]}
+                  onPress={() => setActiveTab("history")}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="clock" size={13} color={activeTab === "history" ? Colors.primary : "#999"} />
+                  <Text style={[styles.tabText, activeTab === "history" && styles.tabTextActive]}>
+                    Historique
+                  </Text>
+                  <View style={styles.historyBadge}>
+                    <Text style={styles.historyBadgeText}>{history.length}</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <ScrollView
               style={styles.scrollArea}
               contentContainerStyle={{ paddingBottom: 16 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* Suggestions rapides */}
-              {!hasResult && !loading && (
-                <View style={styles.quickWrap}>
-                  <Text style={styles.quickTitle}>SUGGESTIONS RAPIDES</Text>
-                  <View style={styles.quickGrid}>
-                    {SUGGESTIONS.map((s) => (
-                      <TouchableOpacity
-                        key={s}
-                        style={styles.quickChip}
-                        onPress={() => setInput(s)}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={styles.quickChipText}>{s}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Loading */}
-              {loading && (
-                <View style={styles.loadingWrap}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.loadingText}>Je prépare ta liste…</Text>
-                </View>
-              )}
-
-              {/* Transcribing */}
-              {transcribing && (
-                <View style={styles.loadingWrap}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.loadingText}>Transcription en cours…</Text>
-                </View>
-              )}
-
-              {/* Erreur */}
-              {!!error && (
-                <View style={styles.errorBubble}>
-                  <Feather name="alert-circle" size={14} color="#e53935" />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-
-              {/* Résultat */}
-              {hasResult && (
-                <View style={styles.resultWrap}>
-                  <View style={styles.aiMessageBubble}>
-                    <Text style={styles.aiMessageText}>{aiResponse}</Text>
-                  </View>
-
-                  {editableItems.length > 0 && (
-                    <>
-                      <View style={styles.productsHeader}>
-                        <View>
-                          <Text style={styles.productsTitle}>
-                            {editableItems.length} article{editableItems.length > 1 ? "s" : ""}
+              {/* ── History tab ── */}
+              {activeTab === "history" && !hasResult && !loading && (
+                <View style={styles.historyList}>
+                  <Text style={styles.quickTitle}>LISTES RÉCENTES</Text>
+                  {history.length === 0 ? (
+                    <Text style={styles.emptyText}>Aucune liste sauvegardée pour l'instant.</Text>
+                  ) : (
+                    history.map((entry) => (
+                      <View key={entry.id} style={styles.historyCard}>
+                        <TouchableOpacity
+                          style={styles.historyCardMain}
+                          onPress={() => loadHistoryEntry(entry)}
+                          activeOpacity={0.75}
+                        >
+                          <View style={styles.historyCardTop}>
+                            <Text style={styles.historyQuery} numberOfLines={1}>
+                              {entry.query}
+                            </Text>
+                            <Text style={styles.historyDate}>{formatRelativeDate(entry.createdAt)}</Text>
+                          </View>
+                          <Text style={styles.historyMeta}>
+                            {entry.items.length} article{entry.items.length > 1 ? "s" : ""}
+                            {entry.items.length > 0
+                              ? " · " + entry.items.slice(0, 3).map((i) => getEmoji(i.nom, i.emoji)).join(" ")
+                              : ""}
                           </Text>
-                          <Text style={styles.productsHint}>
-                            ✏️ Modifie le nom ou le prix avant d'ajouter
-                          </Text>
-                        </View>
-                        <TouchableOpacity onPress={handleAddAll} style={styles.addAllBtn}>
-                          <Feather name="shopping-cart" size={13} color="#FFF" />
-                          <Text style={styles.addAllText}>Tout ajouter</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.historyDeleteBtn}
+                          onPress={() => deleteHistoryEntry(entry.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Feather name="trash-2" size={14} color="#ccc" />
                         </TouchableOpacity>
                       </View>
-
-                      {editableItems.map((item, i) => {
-                        const isAdded = added.has(i);
-                        return (
-                          <View key={i} style={[styles.productCard, isAdded && styles.productCardDone]}>
-                            <Text style={styles.productEmoji}>
-                              {getEmoji(item.editedNom, item.emoji)}
-                            </Text>
-
-                            <View style={styles.productInfo}>
-                              {/* Nom éditable */}
-                              <TextInput
-                                style={[styles.editNom, isAdded && styles.editDone]}
-                                value={item.editedNom}
-                                onChangeText={(v) => updateItem(i, "editedNom", v)}
-                                editable={!isAdded}
-                                selectTextOnFocus
-                                returnKeyType="done"
-                              />
-                              {/* Prix éditable */}
-                              <View style={styles.prixRow}>
-                                <TextInput
-                                  style={[styles.editPrix, isAdded && styles.editDone]}
-                                  value={item.editedPrix}
-                                  onChangeText={(v) => updateItem(i, "editedPrix", v.replace(/[^0-9]/g, ""))}
-                                  editable={!isAdded}
-                                  keyboardType="numeric"
-                                  selectTextOnFocus
-                                  returnKeyType="done"
-                                />
-                                <Text style={styles.fcfaLabel}> FCFA</Text>
-                              </View>
-                            </View>
-
-                            <View style={styles.cardActions}>
-                              {!isAdded && (
-                                <TouchableOpacity
-                                  style={styles.removeBtn}
-                                  onPress={() => handleRemove(i)}
-                                  activeOpacity={0.8}
-                                >
-                                  <Feather name="trash-2" size={14} color="#e53935" />
-                                </TouchableOpacity>
-                              )}
-                              <TouchableOpacity
-                                style={[styles.addBtn, isAdded && styles.addBtnDone]}
-                                onPress={() => !isAdded && handleAdd(item, i)}
-                                activeOpacity={isAdded ? 1 : 0.8}
-                              >
-                                <Feather name={isAdded ? "check" : "plus"} size={16} color="#FFF" />
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        );
-                      })}
-
-                      <TouchableOpacity style={styles.newSearchBtn} onPress={reset}>
-                        <Feather name="refresh-cw" size={13} color="#888" />
-                        <Text style={styles.newSearchText}>Nouvelle recherche</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-
-                  {editableItems.length === 0 && (
-                    <Text style={styles.emptyText}>Aucun article trouvé. Essaie d'être plus précis.</Text>
+                    ))
                   )}
                 </View>
+              )}
+
+              {/* ── Search tab ── */}
+              {activeTab === "search" && (
+                <>
+                  {/* Suggestions rapides */}
+                  {!hasResult && !loading && (
+                    <View style={styles.quickWrap}>
+                      <Text style={styles.quickTitle}>SUGGESTIONS RAPIDES</Text>
+                      <View style={styles.quickGrid}>
+                        {SUGGESTIONS.map((s) => (
+                          <TouchableOpacity
+                            key={s}
+                            style={styles.quickChip}
+                            onPress={() => setInput(s)}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={styles.quickChipText}>{s}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Loading */}
+                  {loading && (
+                    <View style={styles.loadingWrap}>
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                      <Text style={styles.loadingText}>Je prépare ta liste…</Text>
+                    </View>
+                  )}
+
+                  {/* Transcribing */}
+                  {transcribing && (
+                    <View style={styles.loadingWrap}>
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                      <Text style={styles.loadingText}>Transcription en cours…</Text>
+                    </View>
+                  )}
+
+                  {/* Erreur */}
+                  {!!error && (
+                    <View style={styles.errorBubble}>
+                      <Feather name="alert-circle" size={14} color="#e53935" />
+                      <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                  )}
+
+                  {/* Résultat */}
+                  {hasResult && (
+                    <View style={styles.resultWrap}>
+                      <View style={styles.aiMessageBubble}>
+                        <Text style={styles.aiMessageText}>{aiResponse}</Text>
+                      </View>
+
+                      {editableItems.length > 0 && (
+                        <>
+                          <View style={styles.productsHeader}>
+                            <View>
+                              <Text style={styles.productsTitle}>
+                                {editableItems.length} article{editableItems.length > 1 ? "s" : ""}
+                              </Text>
+                              <Text style={styles.productsHint}>
+                                ✏️ Modifie le nom ou le prix avant d'ajouter
+                              </Text>
+                            </View>
+                            <TouchableOpacity onPress={handleAddAll} style={styles.addAllBtn}>
+                              <Feather name="shopping-cart" size={13} color="#FFF" />
+                              <Text style={styles.addAllText}>Tout ajouter</Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          {editableItems.map((item, i) => {
+                            const isAdded = added.has(i);
+                            return (
+                              <View key={i} style={[styles.productCard, isAdded && styles.productCardDone]}>
+                                <Text style={styles.productEmoji}>
+                                  {getEmoji(item.editedNom, item.emoji)}
+                                </Text>
+
+                                <View style={styles.productInfo}>
+                                  <TextInput
+                                    style={[styles.editNom, isAdded && styles.editDone]}
+                                    value={item.editedNom}
+                                    onChangeText={(v) => updateItem(i, "editedNom", v)}
+                                    editable={!isAdded}
+                                    selectTextOnFocus
+                                    returnKeyType="done"
+                                  />
+                                  <View style={styles.prixRow}>
+                                    <TextInput
+                                      style={[styles.editPrix, isAdded && styles.editDone]}
+                                      value={item.editedPrix}
+                                      onChangeText={(v) => updateItem(i, "editedPrix", v.replace(/[^0-9]/g, ""))}
+                                      editable={!isAdded}
+                                      keyboardType="numeric"
+                                      selectTextOnFocus
+                                      returnKeyType="done"
+                                    />
+                                    <Text style={styles.fcfaLabel}> FCFA</Text>
+                                  </View>
+                                </View>
+
+                                <View style={styles.cardActions}>
+                                  {!isAdded && (
+                                    <TouchableOpacity
+                                      style={styles.removeBtn}
+                                      onPress={() => handleRemove(i)}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Feather name="trash-2" size={14} color="#e53935" />
+                                    </TouchableOpacity>
+                                  )}
+                                  <TouchableOpacity
+                                    style={[styles.addBtn, isAdded && styles.addBtnDone]}
+                                    onPress={() => !isAdded && handleAdd(item, i)}
+                                    activeOpacity={isAdded ? 1 : 0.8}
+                                  >
+                                    <Feather name={isAdded ? "check" : "plus"} size={16} color="#FFF" />
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            );
+                          })}
+
+                          <TouchableOpacity style={styles.newSearchBtn} onPress={reset}>
+                            <Feather name="refresh-cw" size={13} color="#888" />
+                            <Text style={styles.newSearchText}>Nouvelle recherche</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+
+                      {editableItems.length === 0 && (
+                        <Text style={styles.emptyText}>Aucun article trouvé. Essaie d'être plus précis.</Text>
+                      )}
+                    </View>
+                  )}
+                </>
               )}
             </ScrollView>
 
@@ -587,7 +740,6 @@ export default function AIAssistant() {
                   editable={!loading && !micBusy}
                 />
 
-                {/* Microphone toggle button */}
                 <TouchableOpacity
                   style={[styles.micBtn, isRecording && styles.micBtnActive]}
                   onPress={handleMicPress}
@@ -607,7 +759,6 @@ export default function AIAssistant() {
                   )}
                 </TouchableOpacity>
 
-                {/* Send button */}
                 <TouchableOpacity
                   style={[styles.sendBtn, (!input.trim() || loading || micBusy) && styles.sendBtnDisabled]}
                   onPress={askAI}
@@ -669,7 +820,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sheetTitle: { fontSize: 18, fontWeight: "800", color: "#111" },
   sheetSub:   { fontSize: 12, color: "#888", marginTop: 2 },
@@ -678,7 +829,94 @@ const styles = StyleSheet.create({
     backgroundColor: "#eee", alignItems: "center", justifyContent: "center",
   },
 
+  // Tab bar
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 14,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  tabActive: {
+    backgroundColor: "#FFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tabText: { fontSize: 13, fontWeight: "600", color: "#999" },
+  tabTextActive: { color: Colors.primary },
+  historyBadge: {
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    minWidth: 16,
+    alignItems: "center",
+  },
+  historyBadgeText: { fontSize: 10, fontWeight: "700", color: "#FFF" },
+
   scrollArea: { maxHeight: 440 },
+
+  // History list
+  historyList: { gap: 8 },
+  historyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  historyCardMain: {
+    flex: 1,
+    padding: 14,
+    gap: 4,
+  },
+  historyCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  historyQuery: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111",
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 11,
+    color: "#bbb",
+    flexShrink: 0,
+  },
+  historyMeta: {
+    fontSize: 12,
+    color: "#888",
+  },
+  historyDeleteBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    alignSelf: "stretch",
+    justifyContent: "center",
+    alignItems: "center",
+    borderLeftWidth: 1,
+    borderLeftColor: "#F0F0F0",
+  },
 
   quickWrap: { marginBottom: 8 },
   quickTitle: {
@@ -738,13 +976,11 @@ const styles = StyleSheet.create({
   productEmoji: { fontSize: 28 },
   productInfo:  { flex: 1, gap: 4 },
 
-  // Editable nom
   editNom: {
     fontSize: 14, fontWeight: "700", color: "#111",
     borderBottomWidth: 1, borderBottomColor: Colors.primary + "60",
     paddingVertical: 2, paddingHorizontal: 0,
   },
-  // Editable prix row
   prixRow: { flexDirection: "row", alignItems: "center" },
   editPrix: {
     fontSize: 13, color: Colors.primary, fontWeight: "600",
@@ -781,7 +1017,6 @@ const styles = StyleSheet.create({
 
   emptyText: { textAlign: "center", color: "#999", fontSize: 13, padding: 16 },
 
-  // Input bar
   inputRow: {
     marginTop: 12,
     paddingTop: 12,
@@ -808,7 +1043,6 @@ const styles = StyleSheet.create({
     fontSize: 14, color: "#111", maxHeight: 100,
   },
 
-  // Mic button
   micBtn: {
     width: 46, height: 46, borderRadius: 23,
     backgroundColor: "#F0F0F0",
@@ -821,7 +1055,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
 
-  // Wave animation
   waveContainer: {
     flexDirection: "row",
     alignItems: "center",
