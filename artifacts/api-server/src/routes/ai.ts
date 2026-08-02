@@ -1,14 +1,8 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import fs from "fs";
-import { execFile } from "child_process";
-import { promisify } from "util";
-// @ts-ignore — ffmpeg-static has no bundled types
-import ffmpegPath from "ffmpeg-static";
+import { toFile } from "openai/uploads";
 import { openai } from "@workspace/integrations-openai-ai-server";
-
-const execFileAsync = promisify(execFile);
-const FFMPEG = (ffmpegPath as string) ?? "ffmpeg";
 import { verifyAiToken } from "../lib/aiToken";
 import { findUserById } from "../store";
 import { getRecentOrdersByUser } from "../store";
@@ -235,21 +229,24 @@ router.post(
     }
 
     const filePath = req.file.path;
-    const wavPath  = filePath + ".wav";
+    // Determine extension from reported MIME type
+    const mime = req.file.mimetype ?? "audio/m4a";
+    const ext  = mime.includes("wav")  ? "wav"
+               : mime.includes("ogg")  ? "ogg"
+               : mime.includes("webm") ? "webm"
+               : mime.includes("mpeg") || mime.includes("mp3") ? "mp3"
+               : "m4a";
 
     try {
-      // Convert whatever format React Native sends (m4a/aac) → WAV PCM 16-bit
-      await execFileAsync(FFMPEG, [
-        "-y", "-i", filePath,
-        "-ar", "16000",   // 16 kHz — optimal for speech recognition
-        "-ac", "1",       // mono
-        "-c:a", "pcm_s16le",
-        wavPath,
-      ]);
-
+      // Pass file with explicit filename so the API can detect the format.
+      // multer saves without extension — toFile() adds the correct one.
       const transcription = await openai.audio.transcriptions.create({
         model: "gpt-4o-mini-transcribe",
-        file: fs.createReadStream(wavPath) as unknown as File,
+        file: await toFile(
+          fs.createReadStream(filePath),
+          `audio.${ext}`,
+          { type: mime }
+        ),
         language: "fr",
         response_format: "json",
       });
@@ -260,7 +257,6 @@ router.post(
       res.status(500).json({ error: "La transcription a échoué. Réessaie." });
     } finally {
       fs.unlink(filePath, () => {});
-      fs.unlink(wavPath,  () => {});
     }
   }
 );
